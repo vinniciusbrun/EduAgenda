@@ -47,6 +47,7 @@ echo [*] Inicializando repositorio Git para atualizacoes...
 git init >nul 2>&1
 git config user.name "Usuario EduAgenda"
 git config user.email "usuario@eduagenda.local"
+git remote add origin https://github.com/vinniciusbrun/EduAgenda.git >nul 2>&1
 :git_ready
 
 :: 6. Instalar Dependencias
