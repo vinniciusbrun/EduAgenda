@@ -1,0 +1,694 @@
+/* 
+   Módulo de Otimização para Laptop (1280x585)
+   Refinação Cirúrgica - AUDITORIA V2.0 (Cabeçalho Superior Compacto)
+*/
+
+body.laptop-optimized {
+    overflow-x: hidden;
+    background: #0b1222 !important;
+    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif !important;
+}
+
+body.laptop-optimized input,
+body.laptop-optimized select,
+body.laptop-optimized button,
+body.laptop-optimized textarea {
+    font-family: inherit !important;
+}
+
+/* 1. CABEÇALHO ULTRA COMPACTO E EQUÂNIME */
+/* 1. CABEÇALHO ULTRA COMPACTO E EQUÂNIME */
+/* 1. CABEÇALHO ULTRA COMPACTO E EQUÂNIME */
+body.laptop-optimized header {
+    background: var(--card-bg) !important;
+    backdrop-filter: blur(10px) !important;
+    padding: 6px 1rem 4px 1rem !important;
+    /* Margem superior aumentada (+2%) */
+    /* Redução de largura lateral */
+    height: 42px !important;
+    /* Altura ajustada: 42px */
+    min-height: 42px !important;
+    gap: 0.8rem !important;
+    /* Gaps ajustados */
+    border-bottom: 1px solid var(--border-color) !important;
+}
+
+body.laptop-optimized .brand-area {
+    gap: 8px !important;
+}
+
+body.laptop-optimized .logo-container {
+    width: 28px !important;
+    height: 28px !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: var(--border-color) !important;
+}
+
+body.laptop-optimized .school-name {
+    font-size: 0.82rem !important;
+    /* Reduzido +3% */
+    font-weight: 800;
+    color: var(--text-primary) !important;
+}
+
+body.laptop-optimized .coordinator-area {
+    padding-left: 10px !important;
+    gap: 0 !important;
+}
+
+body.laptop-optimized .coordinator-label {
+    font-size: 0.4rem !important;
+    /* Pequeno e discreto */
+    line-height: 1 !important;
+    color: var(--text-secondary) !important;
+    opacity: 0.8;
+}
+
+body.laptop-optimized .coordinator-name {
+    font-size: 0.66rem !important;
+    /* Reduzido +3% */
+    line-height: 1 !important;
+    color: var(--text-primary) !important;
+}
+
+body.laptop-optimized header .user-info {
+    font-size: 0.66rem !important;
+    /* Reduzido +3% */
+    padding: 0 6px !important;
+}
+
+/* Redução dos botões de ação do topo */
+body.laptop-optimized header .controls {
+    gap: 6px !important;
+}
+
+body.laptop-optimized header .controls button {
+    height: 28px !important;
+    /* Botões maiores */
+    font-size: 0.63rem !important;
+    /* Reduzido +3% */
+    padding: 0 10px !important;
+    border-radius: 4px !important;
+    letter-spacing: 0 !important;
+}
+
+body.laptop-optimized #logoutBtn.btn-logout {
+    font-size: 0.66rem !important;
+    /* Reduzido +3% */
+    padding: 0 12px !important;
+    height: 30px !important;
+}
+
+body.laptop-optimized .header-action-btn svg {
+    width: 16px !important;
+    height: 16px !important;
+}
+
+/* Destaque para o botão de Login */
+body.laptop-optimized #loginBtnHeader {
+    height: 25px !important;
+    font-size: 0.7rem !important;
+    padding: 0 10px !important;
+    font-weight: 700 !important;
+}
+
+/* 2. O "CORREDOR" (820PX) */
+body.laptop-optimized main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2px 0 30px 0 !important;
+}
+
+/* Barra de Cadastro - ULTRA COMPACTA PARA CABER EM 820PX */
+body.laptop-optimized .selection-bar {
+    width: 820px !important;
+    max-width: 820px !important;
+    margin: 8px auto 0 auto !important;
+    padding: 0.4rem 0.6rem !important;
+    /* Aumentado de 0.3rem para 0.4rem (~10%+) */
+    border-radius: 8px 8px 0 0 !important;
+    gap: 6px !important;
+    justify-content: space-evenly !important;
+}
+
+body.laptop-optimized .input-group {
+    gap: 2px !important;
+}
+
+body.laptop-optimized .input-group label {
+    font-size: 0.48rem !important;
+    letter-spacing: 0.02em !important;
+}
+
+/* Aplicar restrição de largura apenas na barra de seleção do grid */
+body.laptop-optimized .selection-bar .input-group select,
+body.laptop-optimized .selection-bar .input-group input {
+    height: 25px !important;
+    font-size: 0.65rem !important;
+    padding: 0 4px !important;
+    max-width: 140px !important;
+}
+
+/* Ajustes específicos para nomes maiores */
+body.laptop-optimized #turmaSelect {
+    width: 130px !important;
+}
+
+body.laptop-optimized #profSelect {
+    width: 140px !important;
+}
+
+body.laptop-optimized #freqSelect {
+    width: 110px !important;
+}
+
+body.laptop-optimized #tipoAgendamentoSelect {
+    width: 100px !important;
+}
+
+body.laptop-optimized button#btnEditGrid {
+    height: 26px !important;
+    /* Aumentado de 24px para 26px */
+    font-size: 0.6rem !important;
+    padding: 0 6px !important;
+    white-space: nowrap !important;
+}
+
+/* 3. GRID E NAVEGAÇÃO */
+body.laptop-optimized .grid-navigation-wrapper {
+    width: 100% !important;
+    max-width: 1020px !important;
+    gap: 12px !important;
+}
+
+body.laptop-optimized .schedule-container {
+    width: 820px !important;
+    max-width: 820px !important;
+    padding: 0 !important;
+    border-radius: 0 0 8px 8px !important;
+}
+
+body.laptop-optimized #scheduleGrid thead th {
+    font-size: 0.65rem !important;
+    padding: 4px 2px !important;
+}
+
+body.laptop-optimized .period-label {
+    min-width: 65px !important;
+    font-size: 0.62rem !important;
+}
+
+body.laptop-optimized .slot {
+    min-height: 60px !important;
+    height: 60px !important;
+    padding: 1px 3px !important;
+}
+
+body.laptop-optimized .slot .professor {
+    font-size: 0.6rem !important;
+}
+
+body.laptop-optimized .slot .turma {
+    font-size: 0.5rem !important;
+}
+
+/* 4. SETAS E ETIQUETAS */
+body.laptop-optimized .nav-arrow {
+    width: 38px !important;
+    min-height: 140px !important;
+    background: rgba(30, 41, 59, 0.5) !important;
+}
+
+body.laptop-optimized .nav-arrow svg {
+    width: 22px !important;
+    height: 22px !important;
+}
+
+body.laptop-optimized .floating-resource-selector {
+    position: fixed !important;
+    left: 0 !important;
+    transform: scale(0.7) !important;
+    transform-origin: left center !important;
+    z-index: 1000 !important;
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+    top: calc(25% - 100px) !important;
+    /* Ajuste solicitado */
+}
+
+body.laptop-optimized .floating-shift-selector {
+    position: fixed !important;
+    left: 0 !important;
+    transform: scale(0.7) !important;
+    transform-origin: left center !important;
+    z-index: 1000 !important;
+    border-top-left-radius: 0 !important;
+    border-bottom-left-radius: 0 !important;
+    top: calc(50% + 30px) !important;
+    /* Ajuste solicitado */
+}
+
+/* 5. Rodapé */
+body.laptop-optimized .debug-badge {
+    bottom: 110px !important;
+    /* Mantido conforme v2.4 */
+}
+
+body.laptop-optimized .developer-badge {
+    position: fixed !important;
+    bottom: 20px !important;
+    /* Baixado para 20px conforme solicitado */
+    left: 0 !important;
+    /* Colado na borda esquerda */
+    padding: 2px 8px !important;
+    background: rgba(15, 23, 42, 0.4) !important;
+    border-radius: 0 4px 4px 0 !important;
+    /* Arredondado apenas no lado direito */
+    opacity: 0.3 !important;
+}
+
+/* 6. MODAIS PROPORCIONAIS E PREMIUM (Paleta Welcome) */
+body.laptop-optimized .modal-overlay {
+    background: rgba(11, 18, 34, 0.9) !important;
+    /* Fundo do Welcome */
+    backdrop-filter: blur(4px) !important;
+}
+
+body.laptop-optimized .modal {
+    background: #0b1222 !important;
+    padding: 1.5rem !important;
+    width: 350px !important;
+    max-width: 350px !important;
+    border-radius: 0.6rem !important;
+    border: 1px solid rgba(56, 189, 248, 0.2) !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Novo: Modal de Configurações (Premium) - Proporção Dashboard Laptop */
+body.laptop-optimized #settingsModal .modal.modal-premium {
+    position: fixed !important;
+    top: 62.5px !important;
+    left: 62.5px !important;
+    right: 62.5px !important;
+    bottom: 62.5px !important;
+    width: auto !important;
+    height: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    transform: none !important;
+    zoom: 0.8 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    background: rgba(15, 23, 42, 0.95) !important;
+    backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(56, 189, 248, 0.3) !important;
+    border-radius: 16px !important;
+    padding: 1.5rem 2rem !important;
+    /* Reduzi padding superior */
+    z-index: 10001 !important;
+}
+
+body.laptop-optimized #settingsModal .tab-content {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    padding-right: 15px !important;
+}
+
+body.laptop-optimized #settingsModal .modal-header {
+    margin-bottom: 1rem !important;
+    padding-bottom: 10px !important;
+    flex-shrink: 0 !important;
+}
+
+body.laptop-optimized #settingsModal .tab-btn {
+    padding: 6px 12px !important;
+    font-size: 0.8rem !important;
+}
+
+/* Listas internas fluem para o scroller global */
+body.laptop-optimized #settingsResourcesList,
+body.laptop-optimized #settingsProfessorsList,
+body.laptop-optimized #settingsTurmasList {
+    max-height: none !important;
+    overflow-y: visible !important;
+    height: auto !important;
+    padding-right: 5px !important;
+}
+
+/* Ajuste Específico para o Dashboard BI - Alargamento e Reescala */
+body.laptop-optimized .modal.dashboard-modal {
+    position: fixed !important;
+    top: 62.5px !important;
+    left: 62.5px !important;
+    right: 62.5px !important;
+    bottom: 62.5px !important;
+    width: auto !important;
+    height: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    transform: none !important;
+    zoom: 0.8 !important;
+    background: rgba(15, 23, 42, 0.95) !important;
+    backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(56, 189, 248, 0.3) !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+/* MODAIS DE CONFIGURAÇÃO GITHUB (Proporcionais ao conteúdo) */
+body.laptop-optimized #githubBackupModal .modal,
+body.laptop-optimized #githubProjectModal .modal {
+    position: fixed !important;
+    top: 62.5px !important;
+    /* Mantém topo */
+    left: 187.5px !important;
+    /* +100px cada lado (125px CSS / 0.8 zoom) */
+    right: 187.5px !important;
+    bottom: 187.5px !important;
+    /* +100px inferior */
+    width: auto !important;
+    height: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    transform: none !important;
+    zoom: 0.8 !important;
+    background: rgba(15, 23, 42, 0.95) !important;
+    backdrop-filter: blur(20px) !important;
+    border: 1px solid rgba(56, 189, 248, 0.3) !important;
+    font-family: 'Plus Jakarta Sans', sans-serif !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+    border-radius: 16px !important;
+}
+
+/* Scrollbar Global e Universal para Laptop Mode (Aplica em tudo) */
+body.laptop-optimized ::-webkit-scrollbar {
+    width: 6px !important;
+    height: 6px !important;
+}
+
+body.laptop-optimized ::-webkit-scrollbar-track {
+    background: rgba(30, 41, 59, 0.5) !important;
+    border-radius: 10px !important;
+}
+
+body.laptop-optimized ::-webkit-scrollbar-thumb {
+    background: #475569 !important;
+    border-radius: 10px !important;
+    border: 2px solid rgba(30, 41, 59, 0.5) !important;
+}
+
+body.laptop-optimized ::-webkit-scrollbar-thumb:hover {
+    background: #64748b !important;
+}
+
+body.laptop-optimized .dashboard-card {
+    background: rgba(30, 41, 59, 0.4) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid rgba(255, 255, 255, 0.05) !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+    transition: transform 0.2s ease, box-shadow 0.2s ease !important;
+
+    /* v8.12: Correção de Tipografia Laptop */
+    padding: 1rem !important;
+    word-wrap: break-word !important;
+    overflow: hidden !important;
+}
+
+body.laptop-optimized .dashboard-card:hover {
+    transform: translateY(-2px) !important;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2) !important;
+}
+
+body.laptop-optimized .dashboard-modal .modal-header {
+    margin-bottom: 15px !important;
+    padding-bottom: 10px !important;
+}
+
+body.laptop-optimized .modal h2,
+body.laptop-optimized .modal h3 {
+    font-size: 1.2rem !important;
+    margin-bottom: 25px !important;
+    /* v8.10: Aumentado de 1.2rem */
+    padding-bottom: 15px !important;
+    /* v8.10: Padding extra */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    /* v8.10: Separador sutil */
+    background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 700 !important;
+    text-align: center !important;
+}
+
+body.laptop-optimized .login-form {
+    gap: 0.7rem !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    /* Estica itens para ocupar toda a largura */
+}
+
+body.laptop-optimized .modal .input-group {
+    margin-top: 8px !important;
+    gap: 5px !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    /* Estica o input para a largura total */
+    text-align: left !important;
+    width: 100% !important;
+}
+
+body.laptop-optimized .input-group label {
+    font-size: 0.75rem !important;
+    /* Aumentado conforme solicitado */
+    font-weight: 600 !important;
+    letter-spacing: 0.05em !important;
+    color: #cbd5e1 !important;
+    margin-bottom: 4px !important;
+    display: block !important;
+    width: 100% !important;
+    align-self: flex-start !important;
+    /* Garante que o texto do label fique à esquerda */
+}
+
+body.laptop-optimized .login-form input {
+    background: rgba(30, 41, 59, 0.5) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    padding: 0.7rem 1rem !important;
+    font-size: 0.85rem !important;
+    border-radius: 0.4rem !important;
+    color: #ffffff !important;
+    width: 100% !important;
+    max-width: none !important;
+    /* Remove restrições herdadas */
+    /* Ocupa toda a linha */
+    text-align: left !important;
+    margin: 0 !important;
+    /* Remove margens que podem encurtar o campo */
+    box-sizing: border-box !important;
+}
+
+body.laptop-optimized .login-form input:focus {
+    border-color: #38bdf8 !important;
+    background: rgba(30, 41, 59, 0.8) !important;
+}
+
+body.laptop-optimized .modal .modal-actions {
+    margin-top: 1.2rem !important;
+    gap: 0.6rem !important;
+}
+
+body.laptop-optimized .modal button.primary {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    border-radius: 4px !important;
+    font-weight: 700 !important;
+    padding: 0.7rem !important;
+    width: 100% !important;
+    margin-top: 10px !important;
+}
+
+body.laptop-optimized .modal button.primary:hover {
+    background: #38bdf8 !important;
+    color: #ffffff !important;
+}
+
+body.laptop-optimized .modal button:not(.primary) {
+    padding: 0.6rem 1rem !important;
+    font-size: 0.75rem !important;
+    letter-spacing: 0.05em !important;
+}
+
+body.laptop-optimized .hint-card {
+    margin-top: 15px !important;
+    padding: 0.6rem !important;
+}
+
+body.laptop-optimized .hint-card span {
+    font-size: 0.7rem !important;
+}
+
+/* Override para seletores laterais (Alinhamento à Esquerda) */
+body.laptop-optimized .floating-shift-selector button,
+body.laptop-optimized .floating-resource-selector button {
+    justify-content: flex-start !important;
+    text-align: left !important;
+    padding-left: 12px !important;
+}
+
+/* Alinhamento das Tabelas de Configuração (Força altura mínima nas descrições) */
+body.laptop-optimized #settingsModal p {
+    min-height: 48px !important;
+    margin-bottom: 15px !important;
+    display: flex;
+    align-items: center;
+}
+
+/* 
+   ------------------------------------------------------------------
+   GITHUB MODAL OPTIMIZATION (Laptop)
+   Aumento de largura e ajuste de proporção
+   ------------------------------------------------------------------
+*/
+body.laptop-optimized #githubBackupModal .modal,
+body.laptop-optimized #githubProjectModal .modal {
+    padding: 2rem !important;
+    background: #0b1222 !important;
+    border: 1px solid rgba(56, 189, 248, 0.2) !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7) !important;
+}
+
+body.laptop-optimized #githubBackupModal input,
+body.laptop-optimized #githubProjectModal input {
+    background: rgba(15, 23, 42, 0.6) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+    font-size: 0.8rem !important;
+    /* Fonte um pouco menor para caber URL longa */
+    padding: 10px !important;
+}
+
+body.laptop-optimized #githubBackupModal label,
+body.laptop-optimized #githubProjectModal label {
+    font-size: 0.75rem !important;
+    color: #94a3b8 !important;
+    margin-bottom: 5px !important;
+    display: block !important;
+}
+
+body.laptop-optimized #githubBackupModal .modal-description,
+body.laptop-optimized #githubProjectModal .modal-description {
+    font-size: 0.85rem !important;
+    color: #cbd5e1 !important;
+    margin-bottom: 20px !important;
+}
+
+body.laptop-optimized #githubBackupModal .modal-header,
+body.laptop-optimized #githubProjectModal .modal-header {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    margin-bottom: 20px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    padding-bottom: 15px !important;
+}
+
+body.laptop-optimized #githubBackupModal .modal-header h3,
+body.laptop-optimized #githubProjectModal .modal-header h3 {
+    margin: 0 !important;
+    border: none !important;
+    padding: 0 !important;
+    text-align: left !important;
+    font-size: 1.1rem !important;
+    flex-grow: 1 !important;
+    /* Empurra o botão para o canto */
+}
+
+body.laptop-optimized #githubBackupModal .close-modal-btn,
+body.laptop-optimized #githubProjectModal .close-modal-btn {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    color: #fff !important;
+    font-size: 1.1rem !important;
+    cursor: pointer !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 32px !important;
+    height: 32px !important;
+    border-radius: 6px !important;
+    margin-left: 10px !important;
+    transition: all 0.2s ease !important;
+}
+
+body.laptop-optimized #githubBackupModal .close-modal-btn:hover,
+body.laptop-optimized #githubProjectModal .close-modal-btn:hover {
+    background: rgba(239, 68, 68, 0.2) !important;
+    border-color: #ef4444 !important;
+    color: #ef4444 !important;
+}
+
+/* Removido o seletor redundante que estava aqui e unificado acima */
+
+/* Ajustes internos das colunas para caber em telas menores */
+body.laptop-optimized .settings-section h4 {
+    font-size: 0.85rem !important;
+    margin-bottom: 10px !important;
+}
+
+body.laptop-optimized .settings-section p {
+    font-size: 0.75rem !important;
+}
+
+body.laptop-optimized .settings-section button {
+    font-size: 0.8rem !important;
+    padding: 8px !important;
+}
+
+/* 
+   ------------------------------------------------------------------
+   PASSWORD MANAGEMENT MODAL OPTIMIZATION (Laptop)
+   ------------------------------------------------------------------
+*/
+body.laptop-optimized #managePasswordsModal .modal-premium {
+    position: fixed !important;
+    top: 50px !important;
+    left: 50px !important;
+    right: 50px !important;
+    bottom: 50px !important;
+    width: auto !important;
+    height: auto !important;
+    max-width: none !important;
+    max-height: none !important;
+    margin: 0 !important;
+    transform: none !important;
+    zoom: 1 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden !important;
+}
+
+body.laptop-optimized #managePasswordsModal .modal-body {
+    flex: 1 !important;
+    overflow-y: auto !important;
+}
+
+body.laptop-optimized #managePasswordsModal table th,
+body.laptop-optimized #managePasswordsModal table td {
+    padding: 8px !important;
+    font-size: 0.85rem !important;
+}

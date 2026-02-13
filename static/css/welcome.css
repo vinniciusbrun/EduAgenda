@@ -1,0 +1,149 @@
+/* 
+   Welcome Screen Styles - Premium Corporate Aesthetic
+   Minimalist, Elegant, No-Icons
+*/
+
+.welcome-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #0b1222;
+    /* Fundo profundo para combinar com o app */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 99999;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.8s;
+}
+
+.welcome-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.welcome-content {
+    max-width: 600px;
+    width: 90%;
+    text-align: center;
+    color: #ffffff;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1.5rem;
+    animation: contentReveal 1.2s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes contentReveal {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+.welcome-header {
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-weight: 300;
+    font-size: 0.8rem;
+    color: #38bdf8;
+    opacity: 0.9;
+}
+
+.welcome-title {
+    font-size: 2.2rem;
+    font-weight: 700;
+    line-height: 1.2;
+    margin: 0;
+    background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.welcome-separator {
+    width: 40px;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.2);
+    margin: 1rem 0;
+}
+
+.welcome-message {
+    font-size: 1.1rem;
+    font-weight: 400;
+    color: #94a3b8;
+    line-height: 1.6;
+}
+
+.welcome-alert-box {
+    margin-top: 0.8rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid rgba(56, 189, 248, 0.15);
+    background: rgba(56, 189, 248, 0.03);
+    border-radius: 4px;
+    max-width: 500px;
+}
+
+.welcome-alert-tag {
+    display: inline-block;
+    font-size: 0.55rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: #38bdf8;
+    margin-bottom: 0.4rem;
+}
+
+.welcome-alert-text {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #cbd5e1;
+    margin: 0;
+    line-height: 1.5;
+}
+
+.welcome-btn {
+    margin-top: 2rem;
+    background: #ffffff;
+    color: #0f172a;
+    border: none;
+    padding: 1rem 2.5rem;
+    font-size: 0.85rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.15em;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border-radius: 2px;
+}
+
+.welcome-btn:hover {
+    background: #38bdf8;
+    color: #ffffff;
+    letter-spacing: 0.2em;
+    box-shadow: 0 10px 30px rgba(56, 189, 248, 0.2);
+}
+
+/* Responsividade Laptop */
+@media (max-width: 1366px) {
+    .welcome-title {
+        font-size: 1.8rem;
+    }
+
+    .welcome-message {
+        font-size: 1rem;
+    }
+
+    .welcome-btn {
+        padding: 0.8rem 2rem;
+    }
+}

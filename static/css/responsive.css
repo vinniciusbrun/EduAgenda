@@ -1,0 +1,34 @@
+/* Ativado apenas via JS se Admin */
+.debug-badge {
+    display: none;
+    /* Hide by default to avoid 'Detectando...' flash */
+    position: fixed !important;
+    bottom: 50px !important;
+    left: 0 !important;
+    background: #0f172a !important;
+    color: #38bdf8 !important;
+    padding: 6px 14px !important;
+    border-radius: 0 100px 100px 0 !important;
+    font-family: 'monospace', monospace !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    z-index: 10000 !important;
+    border: 1px solid rgba(56, 189, 248, 0.4) !important;
+    border-left: none !important;
+    box-shadow: 4px 0 15px rgba(0, 0, 0, 0.4) !important;
+    pointer-events: auto !important;
+    cursor: help !important;
+    display: none;
+    /* JS altera para block */
+}
+
+/* Responsividade Base */
+@media screen and (max-width: 1400px) {
+    .slot {
+        min-height: 62px;
+    }
+
+    .school-name {
+        font-size: 1rem;
+    }
+}

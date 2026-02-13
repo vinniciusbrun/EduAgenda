@@ -1,0 +1,1084 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agenda de Recursos Pedagógicos</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=8.23">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}?v=8.22">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/laptop_fix.css') }}?v=8.27">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/welcome.css') }}?v=8.22">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=10.3">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <script>
+        window.currentRole = "{{ session.get('role', 'visitante') }}";
+        window.currentUsername = "{{ session.get('user', 'Visitante') }}";
+    </script>
+</head>
+
+<body>
+    <header>
+        <div class="brand-area" id="brandArea">
+            <div class="logo-container" id="logoContainer" title="Arraste o logo aqui (Admin)">
+                <img id="schoolLogo" src="" alt="Logo" style="display: none;">
+                <div id="logoPlaceholder" class="logo-placeholder"></div>
+            </div>
+            <h1 id="schoolName" class="school-name" title="Clique para editar (Admin)">EduAgenda</h1>
+            <div class="coordinator-area">
+                <span class="coordinator-label">Coordenação Pedagógica:</span>
+                <span id="coordinatorName" class="coordinator-name" title="Clique para editar (Admin)">Definir
+                    Coordenador</span>
+            </div>
+        </div>
+        <div class="controls">
+            <button id="btnOpenDashboard" class="btn-dashboard" onclick="openModal('dashboardModal')"
+                style="display: none;">Dashboard
+                BI</button>
+
+
+
+            <div id="userBadge" style="display: flex; align-items: center; gap: 10px; margin-left: 20px;">
+                <span id="userName"
+                    style="font-size: 0.8rem; color: var(--bg-color); font-weight: 600;">Carregando...</span>
+                <button id="loginBtnHeader" class="btn-small primary" onclick="openModal('loginModal')">Entrar</button>
+                <button id="btnChangePassword" class="btn-small header-action-btn"
+                    onclick="openModal('changePasswordModal')" style="display: none;">Alterar
+                    Senha</button>
+                <button id="btnSettings" class="header-action-btn" onclick="openSettingsModal()" style="display: none;"
+                    title="Configurações">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="3"></circle>
+                        <path
+                            d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z">
+                        </path>
+                    </svg>
+                </button>
+                <button id="logoutBtn" class="btn-small btn-logout" onclick="logout()"
+                    style="display: none;">Sair</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="main-content">
+
+        <section id="selectionBar" class="selection-bar">
+            <div class="input-group" style="display: none;">
+                <label>Semana</label>
+                <input type="date" id="semanaSelect" onchange="loadSchedule()">
+            </div>
+            <div class="input-group" id="group-tipo-agendamento" style="display: none;">
+                <label>Tipo</label>
+                <select id="tipoAgendamentoSelect" onchange="onTipoAgendamentoChange()">
+                    <option value="aula">Aula Regular</option>
+                    <option value="evento">Evento Externo</option>
+                </select>
+            </div>
+
+            <div class="input-group" id="group-turma">
+                <label>Turma</label>
+                <select id="turmaSelect" disabled onchange="enableGrid()">
+                    <option value="">Selecione o Turno</option>
+                </select>
+                <input type="text" id="eventoDescInput" placeholder="Nome da Palestra/Treinamento"
+                    style="display: none;" oninput="enableGrid()">
+            </div>
+            <div class="input-group" id="group-professor">
+                <label>Professor</label>
+                <select id="profSelect" onchange="enableGrid()">
+                    <option value="">Selecione</option>
+                </select>
+                <input type="text" id="eventoRespInput" placeholder="Nome do Convidado/Empresa" style="display: none;"
+                    oninput="enableGrid()">
+            </div>
+            <div class="input-group" id="group-frequencia">
+                <label>Frequência</label>
+                <select id="freqSelect">
+                    <option value="diaria">Diária (Única)</option>
+                    <option value="semanal">Semanal</option>
+                    <option value="quinzenal">Quinzenal</option>
+                </select>
+            </div>
+            <button class="primary" id="btnEditGrid" onclick="toggleEditMode()" disabled>Editar Horários</button>
+        </section>
+
+        <section class="grid-navigation-wrapper">
+            <button class="nav-arrow prev" onclick="changeWeek(-1)" title="Semana Anterior">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <polyline points="15 18 9 12 15 6"></polyline>
+                </svg>
+            </button>
+
+            <section class="schedule-container">
+                <table id="scheduleGrid">
+                    <thead>
+                        <tr>
+                            <th>Período</th>
+                            <th>Segunda</th>
+                            <th>Terça</th>
+                            <th>Quarta</th>
+                            <th>Quinta</th>
+                            <th>Sexta</th>
+                        </tr>
+                    </thead>
+                    <tbody id="gridBody">
+                        <!-- Gerado via JS -->
+                    </tbody>
+                </table>
+            </section>
+
+            <button class="nav-arrow next" onclick="changeWeek(1)" title="Próxima Semana">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+                    stroke-linejoin="round">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                </svg>
+            </button>
+        </section>
+    </main>
+
+    <!-- Modais -->
+
+
+
+
+
+    <div id="loginModal" class="modal-overlay">
+        <div class="modal modal-premium" style="max-width: 450px !important; padding: 3rem 2.5rem !important;">
+            <div id="modalLogoContainer" style="display: flex; justify-content: center; margin-bottom: 20px;">
+                <img id="modalSchoolLogo" src="" alt="Logo"
+                    style="display: none; max-height: 80px; width: auto; border-radius: 12px; background-color: #ffffff; padding: 10px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);">
+            </div>
+            <h2 id="modalSchoolName"
+                style="margin-bottom: 30px; text-align: center; font-weight: 800; color: #ffffff; font-size: 1.6rem; line-height: 1.2; letter-spacing: -0.01em;">
+                EduAgenda</h2>
+            <form id="loginForm" class="login-form" onsubmit="handleLogin(event)">
+                <div class="input-group">
+                    <label style="color: #f1f5f9; font-size: 0.75rem; letter-spacing: 0.1em;">USUÁRIO</label>
+                    <input type="text" name="username" required placeholder="ex: jose.santos"
+                        style="padding: 0.7rem 1rem;">
+                </div>
+                <div class="input-group" style="margin-top: 15px;">
+                    <label style="color: #f1f5f9; font-size: 0.75rem; letter-spacing: 0.1em;">SENHA</label>
+                    <input type="password" name="password" required placeholder="Sua senha"
+                        style="padding: 0.7rem 1rem;">
+                </div>
+                <button type="submit" class="primary"
+                    style="width: 100%; margin-top: 25px; padding: 0.8rem; border-radius: 0.6rem; font-weight: 700; text-transform: uppercase;">Acessar
+                    Sistema</button>
+            </form>
+            <div class="hint-card"
+                style="margin-top: 25px; justify-content: center; background: rgba(255, 255, 255, 0.03); border-color: rgba(255, 255, 255, 0.1); color: #94a3b8; padding: 0.8rem;">
+                <span style="font-size: 0.8rem;">🔑 Padrão: <strong>@Senha123456</strong></span>
+            </div>
+        </div>
+    </div>
+
+    <div id="changePasswordModal" class="modal-overlay">
+        <div class="modal modal-premium" style="max-width: 450px !important;">
+            <h3>Alterar Senha</h3>
+            <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 20px;">Por segurança, confirme sua senha atual
+                antes de definir uma nova.</p>
+
+            <form id="changePasswordForm" onsubmit="handleChangePassword(event)">
+                <div class="input-group">
+                    <label style="color: #f1f5f9; font-size: 0.75rem; letter-spacing: 0.1em;">SENHA ATUAL</label>
+                    <input type="password" name="current_password" required placeholder="Digite a senha atual"
+                        style="padding: 0.7rem 1rem;">
+                </div>
+
+                <div class="input-group" style="margin-top: 15px;">
+                    <label style="color: #f1f5f9; font-size: 0.75rem; letter-spacing: 0.1em;">NOVA SENHA</label>
+                    <input type="password" name="new_password" required placeholder="Mínimo 6 caracteres"
+                        style="padding: 0.7rem 1rem;">
+                </div>
+
+                <div class="input-group" style="margin-top: 15px;">
+                    <label style="color: #f1f5f9; font-size: 0.75rem; letter-spacing: 0.1em;">CONFIRMAR NOVA
+                        SENHA</label>
+                    <input type="password" name="confirm_new_password" required placeholder="Repita a nova senha"
+                        style="padding: 0.7rem 1rem;">
+                </div>
+
+                <div class="modal-actions" style="margin-top: 25px; padding: 0;">
+                    <button type="button" onclick="closeModal('changePasswordModal')">Cancelar</button>
+                    <button type="submit" class="primary">Salvar Alteração</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="resetModal" class="modal-overlay">
+        <div class="modal modal-danger">
+            <h3>🚨 Atenção: Reset do Sistema</h3>
+            <p>Esta ação é <strong>irreversível</strong> e apagará permanentemente todos os dados (Agendamentos, Turmas
+                e Professores), mantendo apenas sua conta de Administrador.</p>
+
+            <div class="confirmation-card">
+                <label>
+                    <input type="checkbox" id="confirmResetCheckbox"
+                        onchange="document.getElementById('btnConfirmResetFinal').disabled = !this.checked">
+                    ESTOU CIENTE E DESEJO APAGAR TUDO
+                </label>
+            </div>
+
+            <div class="modal-actions">
+                <button onclick="closeModal('resetModal')">Cancelar</button>
+                <button class="primary btn-danger" id="btnConfirmResetFinal" onclick="confirmReset()" disabled>Resetar
+                    Agora</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="shiftSelectorVisitor" class="floating-shift-selector" style="display: none;">
+        <button onclick="updateShift('Matutino')" title="Matutino">Matutino</button>
+        <button onclick="updateShift('Vespertino')" title="Vespertino">Vespertino</button>
+        <button onclick="updateShift('Noturno')" title="Noturno">Noturno</button>
+    </div>
+
+    <!-- Seletor de Recursos Flutuante (Visitantes) -->
+    <div id="resourceSelectorVisitor" class="floating-resource-selector" style="display: none;">
+        <!-- Gerado via JS -->
+    </div>
+
+    <!-- Welcome Overlay -->
+    <div id="welcomeOverlay" class="welcome-overlay">
+        <div class="welcome-content">
+            <span class="welcome-header">Agenda de Recursos Pedagógicos | 2026</span>
+            <h1 class="welcome-title">Escola Técnica de Rondonópolis</h1>
+            <div class="welcome-separator"></div>
+            <p class="welcome-message">Bem-vindo à interface de agendamento de recursos pedagógicos. A plataforma foi
+                projetada para oferecer precisão e fluidez no gerenciamento institucional.</p>
+
+            <div class="welcome-alert-box">
+                <span class="welcome-alert-tag">Comunicado Importante</span>
+                <p class="welcome-alert-text">Este sistema encontra-se em fase estratégica de implementação e
+                    testes.Você será levado a área de visitantes. Para agendar recursos, faça login com suas
+                    credenciais.</p>
+                <p class="welcome-alert-text">Seu login é composto por seu primeiro e último nome (ex: joão.silva).</p>
+                <p class="welcome-alert-text">A sua senha padrão é @Senha123456. Altere sua senha após o primeiro login.
+                </p>
+            </div>
+
+            <button id="welcomeCloseBtn" class="welcome-btn">Acessar Sistema</button>
+        </div>
+    </div>
+
+    <div id="debugResolution" class="debug-badge" ondblclick="this.style.display='none'"
+        title="Dê um duplo clique para ocultar (Admin)">Resolução: Detectando...</div>
+    <div class="developer-badge">Desenvolvido por: <br> TI/ETEC-ROO<br>2026</div>
+    <div id="toastContainer" class="toast-container"></div>
+    <!-- Modal Dashboard BI -->
+    <div id="dashboardModal" class="modal-overlay">
+        <div class="modal dashboard-modal"
+            style="max-width: 95vw; width: 1200px; height: 90vh; overflow-y: auto; background: #0f172a; padding: 30px; border-radius: 16px; border: 1px solid rgba(56, 189, 248, 0.2); position: relative;">
+            <div id="dashboardLoader"
+                style="position: absolute; top:0; left:0; width:100%; height:100%; background: #0f172a; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; border-radius: 16px; transition: opacity 0.4s ease-in-out;">
+                <div class="spinner"
+                    style="width: 50px; height: 50px; border: 4px solid rgba(56, 189, 248, 0.1); border-top: 4px solid #0ea5e9; border-radius: 50%; animation: spin 1s linear infinite;">
+                </div>
+                <span style="color: #94a3b8; margin-top: 15px; font-weight: 500;">Processando Inteligência...</span>
+            </div>
+            <div class="modal-header"
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 15px;">
+                <div style="display: flex; align-items: center; flex: 1;">
+                    <h2
+                        style="margin:0; font-size: 1.6rem; background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; white-space: nowrap;">
+                        Inteligência Administrativa</h2>
+                    <div id="dashboardTabsNav" class="dashboard-tabs">
+                        <button class="tab-btn active" data-tab="global">Visão Global</button>
+                        <button class="tab-btn" data-tab="periodo">Relatórios por Período</button>
+                        <!-- Abas dinâmicas injetadas via JS -->
+                    </div>
+                </div>
+                <button onclick="closeModal('dashboardModal')"
+                    style="background:rgba(255, 255, 255, 0.05); border:none; color:#ffffff; cursor:pointer; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; margin-left: 20px;">&times;</button>
+            </div>
+
+            <div id="tab-periodo" class="tab-content" style="padding-top: 10px;">
+                <div class="dashboard-card"
+                    style="background:#1e293b; padding:20px; border-radius:12px; margin-bottom:25px; border: 1px solid rgba(14, 165, 233, 0.2); display: grid !important; grid-template-columns: 1fr auto auto auto auto; gap: 15px; align-items: end;">
+                    <div>
+                        <label
+                            style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; display:block; margin-bottom:8px;">Recurso
+                            Acadêmico</label>
+                        <select id="periodoRecurso"
+                            style="width:100%; background:#0f172a; border: 1px solid rgba(255,255,255,0.1); color:#fff; padding:10px; border-radius:8px;">
+                            <option value="all">TODOS OS RECURSOS</option>
+                        </select>
+                    </div>
+                    <div style="width: 160px;">
+                        <label
+                            style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; display:block; margin-bottom:8px;">Início</label>
+                        <input type="date" id="periodoStart"
+                            style="width: 100%; background:#0f172a; border: 1px solid rgba(255,255,255,0.1); color:#fff; padding:10px; border-radius:8px;">
+                    </div>
+                    <div style="width: 160px;">
+                        <label
+                            style="color:#94a3b8; font-size:0.7rem; text-transform:uppercase; display:block; margin-bottom:8px;">Fim</label>
+                        <input type="date" id="periodoEnd"
+                            style="width: 100%; background:#0f172a; border: 1px solid rgba(255,255,255,0.1); color:#fff; padding:10px; border-radius:8px;">
+                    </div>
+                    <button class="primary" onclick="DashboardAdmin.updatePeriodo()"
+                        style="padding:10px 20px; height:43px; white-space: nowrap;">Gerar Relatório</button>
+                    <button class="btn-small" onclick="DashboardAdmin.downloadPeriodo()"
+                        style="height:43px; padding: 0 20px; background:rgba(16, 185, 129, 0.1); color:#10b981; border:1px solid rgba(16, 185, 129, 0.2); white-space: nowrap;">📥
+                        Excel</button>
+                </div>
+
+                <div id="periodoResults" style="display:none;">
+                    <div class="dashboard-grid"
+                        style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 25px;">
+                        <div class="dashboard-card"
+                            style="background:#1e293b; padding:25px; border-radius:12px; text-align: center;">
+                            <h4 style="color:#94a3b8; font-size:0.8rem; text-transform:uppercase;">Uso no Período</h4>
+                            <div id="chartPeriodoRadial" style="height: 200px;"></div>
+                        </div>
+                        <div class="dashboard-card"
+                            style="background:#1e293b; padding:25px; border-radius:12px; text-align: center;">
+                            <h4 style="color:#94a3b8; font-size:0.8rem; text-transform:uppercase;">Divisão por Turnos
+                            </h4>
+                            <div id="chartPeriodoDonut" style="height: 200px;"></div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-charts-area"
+                        style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
+                        <div class="dashboard-card" style="background:#1e293b; padding:25px; border-radius:12px;">
+                            <h4
+                                style="color:#cbd5e1; border-left:4px solid #a78bfa; padding-left:10px; margin-bottom:15px;">
+                                Ranking Professores</h4>
+                            <div id="chartPeriodoProfs"></div>
+                        </div>
+                        <div class="dashboard-card" style="background:#1e293b; padding:25px; border-radius:12px;">
+                            <h4
+                                style="color:#cbd5e1; border-left:4px solid #f472b6; padding-left:10px; margin-bottom:15px;">
+                                Ranking Turmas</h4>
+                            <div id="chartPeriodoTurmas"></div>
+                        </div>
+                        <div class="dashboard-card"
+                            style="background:#1e293b; padding:25px; border-radius:12px; grid-column: span 2;">
+                            <h4
+                                style="color:#cbd5e1; border-left:4px solid #38bdf8; padding-left:10px; margin-bottom:20px;">
+                                Distribuição de Calor do Período (Tripla)</h4>
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                                <div><span
+                                        style="color:#94a3b8; font-size:0.6rem; display:block; text-align:center;">Manhã</span>
+                                    <div id="heat-p-mat"></div>
+                                </div>
+                                <div><span
+                                        style="color:#94a3b8; font-size:0.6rem; display:block; text-align:center;">Tarde</span>
+                                    <div id="heat-p-vesp"></div>
+                                </div>
+                                <div><span
+                                        style="color:#94a3b8; font-size:0.6rem; display:block; text-align:center;">Noite</span>
+                                    <div id="heat-p-not"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="tab-global" class="tab-content active">
+                <div class="dashboard-grid"
+                    style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+                    <!-- Cards de Resumo -->
+                    <div class="dashboard-card"
+                        style="background:#1e293b; padding:25px; border-radius:12px; border: 1px solid rgba(255,255,255,0.05); text-align: center;">
+                        <h4
+                            style="color:#94a3b8; margin:0 0 15px 0; font-size: 0.9rem; letter-spacing: 0.05em; text-transform: uppercase;">
+                            Ocupação Semanal</h4>
+                        <div id="chartUsabilidadeRadial"></div>
+                    </div>
+                    <div class="dashboard-card"
+                        style="background:#1e293b; padding:25px; border-radius:12px; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                        <h4
+                            style="color:#94a3b8; margin:0 0 15px 0; font-size: 0.8rem; letter-spacing: 0.05em; text-transform: uppercase; text-align:center;">
+                            Líder Matutino</h4>
+                        <h2 id="topTurmaMat"
+                            style="color:#38bdf8; margin:10px 0 !important; font-size: 1.1rem; text-align:center;">---
+                        </h2>
+                        <span style="color:#64748b; font-size: 0.75rem;">Turma mais ativa (Manhã)</span>
+                    </div>
+                    <div class="dashboard-card"
+                        style="background:#1e293b; padding:25px; border-radius:12px; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                        <h4
+                            style="color:#94a3b8; margin:0 0 15px 0; font-size: 0.8rem; letter-spacing: 0.05em; text-transform: uppercase; text-align:center;">
+                            Líder Vespertino</h4>
+                        <h2 id="topTurmaVesp"
+                            style="color:#fbbf24; margin:10px 0 !important; font-size: 1.1rem; text-align:center;">---
+                        </h2>
+                        <span style="color:#64748b; font-size: 0.75rem;">Turma mais ativa (Tarde)</span>
+                    </div>
+                    <div class="dashboard-card"
+                        style="background:#1e293b; padding:25px; border-radius:12px; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                        <h4
+                            style="color:#94a3b8; margin:0 0 15px 0; font-size: 0.8rem; letter-spacing: 0.05em; text-transform: uppercase; text-align:center;">
+                            Líder Noturno</h4>
+                        <h2 id="topTurmaNot"
+                            style="color:#f472b6; margin:10px 0 !important; font-size: 1.1rem; text-align:center;">---
+                        </h2>
+                        <span style="color:#64748b; font-size: 0.75rem;">Turma mais ativa (Noite)</span>
+                    </div>
+                    <div class="dashboard-card"
+                        style="background:#1e293b; padding:25px; border-radius:12px; border: 1px solid rgba(255,255,255,0.05); display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                        <h4
+                            style="color:#94a3b8; margin:0 0 15px 0; font-size: 0.9rem; letter-spacing: 0.05em; text-transform: uppercase; text-align:center;">
+                            Acessos Totais</h4>
+                        <h2 id="totalAcessos"
+                            style="color:#10b981; margin:10px 0 !important; font-size: 2.5rem; text-align:center;">---
+                        </h2>
+                        <span style="color:#64748b; font-size: 0.8rem;">Logins realizados no sistema</span>
+                    </div>
+                </div>
+
+                <div class="dashboard-charts-area"
+                    style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px; margin-top: 25px;">
+                    <div class="dashboard-card"
+                        style="background:#1e293b; padding:25px; border-radius:12px; border: 1px solid rgba(255,255,255,0.05); grid-column: span 2;">
+                        <h4
+                            style="color:#cbd5e1; margin:0 0 20px 0; border-left: 4px solid #38bdf8; padding-left: 10px;">
+                            Picos de Uso por Turno (Calor Semanal)</h4>
+                        <div class="heatmap-container"
+                            style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                            <div>
+                                <span
+                                    style="display:block; color:#94a3b8; font-size:0.7rem; text-align:center; margin-bottom:10px; text-transform:uppercase;">Manhã</span>
+                                <div id="chartHeatmapMat"></div>
+                            </div>
+                            <div>
+                                <span
+                                    style="display:block; color:#94a3b8; font-size:0.7rem; text-align:center; margin-bottom:10px; text-transform:uppercase;">Tarde</span>
+                                <div id="chartHeatmapVesp"></div>
+                            </div>
+                            <div>
+                                <span
+                                    style="display:block; color:#94a3b8; font-size:0.7rem; text-align:center; margin-bottom:10px; text-transform:uppercase;">Noite</span>
+                                <div id="chartHeatmapNot"></div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="dashboard-card"
+                        style="background:#1e293b; padding:25px; border-radius:12px; border: 1px solid rgba(255,255,255,0.05); grid-column: span 2;">
+                        <h4
+                            style="color:#cbd5e1; margin:0 0 20px 0; border-left: 4px solid #f472b6; padding-left: 10px;">
+                            Ranking Global de Turmas (Principais por Turno)</h4>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px;">
+                            <div id="chartTurmasRankingMat"></div>
+                            <div id="chartTurmasRankingVesp"></div>
+                            <div id="chartTurmasRankingNot"></div>
+                        </div>
+                    </div>
+                    <div class="dashboard-card"
+                        style="background:#1e293b; padding:25px; border-radius:12px; border: 1px solid rgba(255,255,255,0.05);">
+                        <h4
+                            style="color:#cbd5e1; margin:0 0 20px 0; border-left: 4px solid #8b5cf6; padding-left: 10px;">
+                            Engajamento de Professores</h4>
+                        <div id="chartProfsRanking" style="min-height: 350px;"></div>
+                    </div>
+                    <div class="dashboard-card"
+                        style="background:#1e293b; padding:25px; border-radius:12px; border: 1px solid rgba(255,255,255,0.05);">
+                        <h4
+                            style="color:#cbd5e1; margin:0 0 20px 0; border-left: 4px solid #10b981; padding-left: 10px;">
+                            Monitoramento de Acessos (Logins)</h4>
+                        <div id="chartLoginsRanking" style="min-height: 350px;"></div>
+                    </div>
+                    <div class="dashboard-card"
+                        style="background:#1e293b; padding:25px; border-radius:12px; border: 1px solid rgba(255,255,255,0.05);">
+                        <h4
+                            style="color:#cbd5e1; margin:0 0 20px 0; border-left: 4px solid #f59e0b; padding-left: 10px;">
+                            Distribuição por Turno</h4>
+                        <div id="chartTurnosDonut" style="min-height: 350px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Container dinâmico para abas de recursos individuais -->
+            <div id="resourceTabsContainer"></div>
+        </div>
+    </div>
+
+    <!-- Modal removido daqui e passado para o body -->
+
+    <!-- ApexCharts CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=8.9"></script>
+    <script src="{{ url_for('static', filename='js/debug.js') }}?v=8.27"></script>
+    <script src="{{ url_for('static', filename='js/welcome.js') }}?v=8.7"></script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}?v=8.20"></script>
+    <!-- Modal de Configurações (Settings) -->
+    <div id="settingsModal" class="modal-overlay">
+        <div class="modal modal-premium">
+            <div class="modal-header"
+                style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); margin-bottom: 20px;">
+                <div style="display: flex; align-items: center; gap: 40px;">
+                    <div style="flex-shrink: 0;">
+                        <h3 style="margin: 0; font-size: 1.4rem;">Configurações</h3>
+                    </div>
+
+                    <!-- Abas movidas para o lado do título -->
+                    <div class="tabs-header" style="display: flex; gap: 5px; border: none; padding: 0; margin: 0;">
+                        <button class="tab-btn active" onclick="openSettingsTab('geral')"
+                            style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); color: #94a3b8; padding: 6px 16px; cursor: pointer; border-radius: 6px; font-weight: 600; transition: all 0.3s; font-size: 0.85rem;">
+                            Geral
+                        </button>
+                        <button class="tab-btn" onclick="openSettingsTab('sistema')"
+                            style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); color: #94a3b8; padding: 6px 16px; cursor: pointer; border-radius: 6px; font-weight: 600; transition: all 0.3s; font-size: 0.85rem;">
+                            Sistema e Debug
+                        </button>
+                    </div>
+                </div>
+
+                <button onclick="closeModal('settingsModal')"
+                    style="background:rgba(255, 255, 255, 0.05); border:none; color:#ffffff; cursor:pointer; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; transition: all 0.2s;">&times;</button>
+            </div>
+
+            <!-- ABA 1: GERAL (Recursos, Turmas, Professores) -->
+            <div id="tab-geral" class="tab-content active">
+                <div class="settings-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+                    <!-- Coluna: Recursos -->
+                    <div class="settings-column">
+                        <div class="settings-section" style="height: 100%;">
+                            <h4>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <polygon points="12 2 2 7 12 12 22 7 12 2"></polygon>
+                                    <polyline points="2 17 12 22 22 17"></polyline>
+                                    <polyline points="2 12 12 17 22 12"></polyline>
+                                </svg>
+                                Gerenciar Recursos
+                            </h4>
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <p style="margin-bottom: 0;">Ative ou desative recursos.</p>
+                                <button onclick="openModal('uploadRecursoModal')" class="btn-small"
+                                    style="background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2); padding: 4px 8px; font-size: 0.7rem;">
+                                    📥 Importar Lista
+                                </button>
+                            </div>
+                            <div id="settingsResourcesList" class="resources-list-container"
+                                style="padding-right: 5px;">
+                                <div style="text-align: center; color: #64748b; padding: 20px;">Carregando recursos...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Coluna: Turmas -->
+                    <div class="settings-column">
+                        <div class="settings-section" style="height: 100%;">
+                            <h4>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="9" cy="7" r="4"></circle>
+                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                </svg>
+                                Gerenciar Turmas
+                            </h4>
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <p style="margin-bottom: 0;">Desative turmas para impedir novos agendamentos.</p>
+                                <button onclick="openModal('uploadTurmaModal')" class="btn-small"
+                                    style="background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2); padding: 4px 8px; font-size: 0.7rem;">
+                                    📥 Importar Lista
+                                </button>
+                            </div>
+                            <div id="settingsTurmasList" class="resources-list-container" style="padding-right: 5px;">
+                                <div style="text-align: center; color: #64748b; padding: 20px;">Carregando turmas...
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Coluna: Professores -->
+                    <div class="settings-column">
+                        <div class="settings-section" style="height: 100%;">
+                            <h4>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                                    <circle cx="9" cy="7" r="4"></circle>
+                                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                                </svg>
+                                Gerenciar Professores
+                            </h4>
+                            <div
+                                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+                                <p style="margin-bottom: 0;">Desative o acesso de professores.</p>
+                                <button onclick="openModal('uploadProfModal')" class="btn-small"
+                                    style="background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2); padding: 4px 8px; font-size: 0.7rem;">
+                                    📥 Importar Lista
+                                </button>
+                            </div>
+                            <div id="settingsProfessorsList" class="resources-list-container"
+                                style="padding-right: 5px;">
+                                <div style="text-align: center; color: #64748b; padding: 20px;">Carregando
+                                    professores...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ABA 2: SISTEMA E DEBUG (4 COLUNAS) -->
+            <div id="tab-sistema" class="tab-content" style="display: none;">
+                <div class="system-grid" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px;">
+
+                    <!-- COLUNA 1: Credenciais -->
+                    <div class="settings-column">
+                        <div class="settings-section" style="height: 100%;">
+                            <h4>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <path
+                                        d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3">
+                                    </path>
+                                </svg>
+                                Credenciais
+                            </h4>
+                            <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 15px;">Gerencie acessos e
+                                tokens.</p>
+
+                            <button onclick="exportUsers()"
+                                style="width: 100%; padding: 12px; background: rgba(234, 179, 8, 0.1); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.2); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; margin-bottom: 10px;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
+                                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z">
+                                    </path>
+                                    <polyline points="14 2 14 8 20 8"></polyline>
+                                    <path d="M12 18v-6"></path>
+                                    <path d="m9 15 3 3 3-3"></path>
+                                </svg>
+                                Baixar Credenciais
+                            </button>
+
+                            <button onclick="openManagePasswordsModal()"
+                                style="width: 100%; padding: 12px; background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
+                                    <path
+                                        d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0 3 3L22 7l-3-3">
+                                    </path>
+                                </svg>
+                                Gerenciar Senhas
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- COLUNA 2: Backup -->
+                    <div class="settings-column">
+                        <div class="settings-section" style="height: 100%;">
+                            <h4>
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                                    <path d="M3 5V19A9 3 0 0 0 21 19V5"></path>
+                                    <path d="m3 12A9 3 0 0 0 21 12"></path>
+                                </svg>
+                                Backup
+                            </h4>
+
+                            <!-- 1. Agendamento (Movido para o Topo) -->
+                            <label class="settings-option"
+                                style="display: block; margin-bottom: 20px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 15px;">
+                                <span
+                                    style="font-size: 0.85rem; color: #94a3b8; display: block; margin-bottom: 5px; font-weight: 600;">Agendamento
+                                    de Back Automático em Nuvem</span>
+                                <div style="display: flex; gap: 10px; align-items: center;">
+                                    <input type="time" id="backupTime"
+                                        style="padding: 6px; border: 1px solid #cbd5e1; border-radius: 4px; background: rgba(15, 23, 42, 0.5); color: #fff;">
+                                    <span style="font-size: 0.75rem; color: #64748b;">(Diário)</span>
+                                </div>
+                                <small id="lastBackupStatus"
+                                    style="display: block; margin-top: 5px; color: #64748b; font-size: 0.7rem;">Último:
+                                    --</small>
+                            </label>
+
+                            <!-- 2. Configurar Nuvem -->
+                            <button onclick="openGithubModal()"
+                                style="width: 100%; padding: 10px; background: #24292f; color: #fff; border: 1px solid #24292f; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; margin-bottom: 10px;">
+                                <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor">
+                                    <path
+                                        d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z">
+                                    </path>
+                                </svg>
+                                Configurar Nuvem
+                            </button>
+
+                            <!-- 3. Restaurar Nuvem -->
+                            <button onclick="restoreFromGithub()"
+                                style="width: 100%; padding: 10px; background: rgba(36, 41, 47, 0.1); color: #94a3b8; border: 1px dashed #24292f; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 20px;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
+                                    <path d="M17.5 19H9a7 7 0 1 1 6.71-9h1.79a4.5 4.5 0 1 1 0 9Z"></path>
+                                    <path d="m11 13-3 3 3 3"></path>
+                                    <path d="M8 16h6"></path>
+                                </svg>
+                                Restaurar Nuvem
+                            </button>
+
+                            <button onclick="backupSystem()"
+                                style="width: 100%; padding: 10px; background: rgba(59, 130, 246, 0.1); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.2); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="7 10 12 15 17 10"></polyline>
+                                    <line x1="12" y1="15" x2="12" y2="3"></line>
+                                </svg>
+                                Fazer Backup
+                            </button>
+
+                            <button onclick="document.getElementById('restoreInput').click()"
+                                style="width: 100%; padding: 10px; background: rgba(249, 115, 22, 0.1); color: #f97316; border: 1px solid rgba(249, 115, 22, 0.2); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="17 8 12 3 7 8"></polyline>
+                                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                                </svg>
+                                Restaurar Local
+                            </button>
+                            <input type="file" id="restoreInput" accept=".zip" style="display: none;"
+                                onchange="handleRestore(event)">
+
+                        </div>
+                    </div>
+
+                    <!-- COLUNA 3: Debug e Atualizações (EXCLUSIVO ROOT) -->
+                    {% if session.get('role') == 'root' %}
+                    <div class="settings-column">
+                        <div class="settings-section" style="height: 100%;">
+                            <h4 style="display: flex; align-items: center; justify-content: space-between;">
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round">
+                                        <rect width="8" height="14" x="8" y="6" rx="4"></rect>
+                                        <path d="m19 7-3 2"></path>
+                                        <path d="m5 7 3 2"></path>
+                                        <path d="m19 19-3-2"></path>
+                                        <path d="m5 19 3-2"></path>
+                                    </svg>
+                                    Debug e Atualizações
+                                </div>
+                                <span id="vLocalLabel"
+                                    style="font-size: 0.65rem; background: rgba(56, 189, 248, 0.1); color: #38bdf8; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.2);">v1.0.0</span>
+                            </h4>
+                            <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 15px;">Desenvolvimento e gestão
+                                de versões.</p>
+
+                            <!-- Botões de CICD -->
+                            <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+                                <button class="primary" onclick="openProjectGithubModal()"
+                                    style="width: 100%; padding: 10px; background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                        stroke-linecap="round" stroke-linejoin="round"
+                                        style="width: 16px; height: 16px;">
+                                        <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                                        <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                                    </svg>
+                                    Sincronizar (Push Dev)
+                                </button>
+
+                                <div style="display: flex; gap: 8px;">
+                                    <button onclick="checkUpdates()"
+                                        style="flex: 1; padding: 10px; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; cursor: pointer; font-size: 0.85rem;">
+                                        Verificar Check
+                                    </button>
+                                    <button id="btnInstallUpdate" onclick="installUpdate()" disabled
+                                        style="flex: 1; padding: 10px; background: rgba(34, 197, 94, 0.1); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 6px; cursor: not-allowed; font-size: 0.85rem; opacity: 0.5;">
+                                        Instalar v--
+                                    </button>
+                                </div>
+
+                                <button onclick="openGithubModal('project')"
+                                    style="width: 100%; padding: 10px; background: #24292f; color: #fff; border: 1px solid #24292f; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s;">
+                                    <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor">
+                                        <path
+                                            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z">
+                                        </path>
+                                    </svg>
+                                    Configurar Repositório
+                                </button>
+                                <div id="updateProgressContainer"
+                                    style="display: none; height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden; margin-top: 5px;">
+                                    <div id="updateProgressBar"
+                                        style="width: 0%; height: 100%; background: #22c55e; transition: width 0.3s;">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <label class="toggle-switch">
+                                <div class="toggle-label">
+                                    <span>Modo Debug de Resolução</span>
+                                    <small>Exibe etiqueta técnica no rodapé</small>
+                                </div>
+                                <input type="checkbox" id="settingsDebugToggle">
+                            </label>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- COLUNA 4: Reset (EXCLUSIVO ROOT) -->
+                    {% if session.get('role') == 'root' %}
+                    <div class="settings-column">
+                        <div class="settings-section" style="height: 100%; border-color: rgba(239, 68, 68, 0.3);">
+                            <h4 style="color: #ef4444;">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z">
+                                    </path>
+                                    <path d="M12 9v4"></path>
+                                    <path d="M12 17h.01"></path>
+                                </svg>
+                                Perigo
+                            </h4>
+                            <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 15px;">Ações irreversíveis.</p>
+
+                            <button id="btnResetSystem" class="primary btn-danger" onclick="resetSystem()"
+                                style="width: 100%; display: none; margin-top: 10px; padding: 15px; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; color: #ef4444;">
+                                Resetar Sistema Completo
+                            </button>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                </div>
+            </div>
+
+            <div class="settings-actions"
+                style="margin-top: 25px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 20px;">
+                <button class="btn-cancel" onclick="closeModal('settingsModal')">Cancelar</button>
+                <button class="btn-save" onclick="saveSettings()">Salvar Alterações</button>
+            </div>
+        </div>
+    </div>
+    <div id="uploadRecursoModal" class="modal-overlay">
+        <div class="modal modal-premium">
+            <h3>Upload de Recursos</h3>
+            <p>Importe laboratórios, auditórios ou salas especiais.</p>
+
+            <div class="hint-card" style="border-left-color: #f59e0b; background: rgba(245, 158, 11, 0.05);">
+                <span style="color: #f59e0b; font-weight: bold;">⚠️ Limite Beta: 8 Recursos</span>
+                <div style="margin-top: 5px; font-size: 0.85rem;">
+                    O sistema aceitará apenas os primeiros 8 recursos. <br>
+                    Colunas esperadas: <strong>'nome'</strong> e <strong>'tipo'</strong>
+                </div>
+            </div>
+
+            <div class="modal-body">
+                <input type="file" id="fileRecurso" accept=".xlsx">
+            </div>
+            <div class="modal-actions">
+                <button onclick="closeModal('uploadRecursoModal')">Cancelar</button>
+                <button class="primary" onclick="uploadFiles('recursos')">Subir Arquivo</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="uploadProfModal" class="modal-overlay">
+        <div class="modal modal-premium">
+            <h3>Upload de Professores</h3>
+            <p>Selecione um arquivo Excel contendo a lista atualizada de professores.</p>
+
+            <div class="hint-card">
+                <span>ℹ️ Coluna esperada: <strong>'professores'</strong> ou <strong>'nome'</strong></span>
+            </div>
+
+            <div class="modal-body">
+                <input type="file" id="fileProf" accept=".xlsx">
+            </div>
+
+            <div class="modal-actions">
+                <button onclick="closeModal('uploadProfModal')">Cancelar</button>
+                <button class="primary" onclick="uploadFiles('professores')">Subir Arquivo</button>
+            </div>
+        </div>
+    </div>
+    <div id="uploadTurmaModal" class="modal-overlay">
+        <div class="modal modal-premium">
+            <h3>Upload de Turmas</h3>
+            <p>Selecione um arquivo Excel para importar as turmas do sistema.</p>
+
+            <div class="hint-card">
+                <span>ℹ️ Colunas esperadas: <strong>'turma'</strong> e <strong>'turno'</strong></span>
+            </div>
+
+            <div class="modal-body">
+                <input type="file" id="fileTurma" accept=".xlsx">
+            </div>
+
+            <div class="modal-actions">
+                <button onclick="closeModal('uploadTurmaModal')">Cancelar</button>
+                <button class="primary" onclick="uploadFiles('turmas')">Subir Arquivo</button>
+            </div>
+        </div>
+    </div>
+    <!-- Modal Configuração GitHub - BACKUP -->
+    <div id="githubBackupModal" class="modal-overlay">
+        <div class="modal modal-premium dashboard-modal">
+            <div class="modal-header"
+                style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 15px; margin-bottom: 20px;">
+                <h3
+                    style="margin:0; font-size: 1.4rem; background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; white-space: nowrap;">
+                    Configuração de Backup na Nuvem</h3>
+                <button class="close-modal-btn" onclick="closeModal('githubBackupModal')"
+                    style="background: rgba(255,255,255,0.05); border: none; color: #fff; border-radius: 50%; width: 32px; height: 32px; cursor: pointer;">×</button>
+            </div>
+            <div class="modal-body" style="padding: 10px 0;">
+                <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 25px;">Configure o repositório satélite
+                    para salvar seus backups diários automaticamente.</p>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label
+                        style="font-size: 0.75rem; color: #38bdf8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 8px;">URL
+                        do Repositório (Backup):</label>
+                    <input type="text" id="ghRepoUrl" placeholder="https://github.com/usuario/backup.git"
+                        oninput="updateGithubTokenLink('backup')"
+                        style="width: 100%; border: 1px solid rgba(56, 189, 248, 0.2); background: rgba(15, 23, 42, 0.6); color: #fff; padding: 12px; border-radius: 8px; outline: none; transition: all 0.2s;">
+                </div>
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label
+                        style="font-size: 0.75rem; color: #38bdf8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 8px;">Usuário
+                        GitHub:</label>
+                    <input type="text" id="ghUser" placeholder="ex: joaosilva"
+                        style="width: 100%; border: 1px solid rgba(56, 189, 248, 0.2); background: rgba(15, 23, 42, 0.6); color: #fff; padding: 12px; border-radius: 8px; outline: none; transition: all 0.2s;">
+                </div>
+                <div class="form-group" style="margin-bottom: 10px;">
+                    <label
+                        style="font-size: 0.75rem; color: #38bdf8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 8px;">Token
+                        de Acesso (PAT):</label>
+                    <input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxx"
+                        style="width: 100%; border: 1px solid rgba(56, 189, 248, 0.2); background: rgba(15, 23, 42, 0.6); color: #fff; padding: 12px; border-radius: 8px; outline: none; transition: all 0.2s;">
+                    <a id="ghTokenLinkBackup"
+                        href="https://github.com/settings/tokens/new?scopes=repo&description=EduAgenda%20Backup%20System"
+                        target="_blank"
+                        style="display: inline-block; font-size: 0.75rem; color: #38bdf8; margin-top: 10px; text-decoration: none; font-weight: 600; padding: 4px 8px; background: rgba(56, 189, 248, 0.1); border-radius: 4px; transition: all 0.2s;">
+                        + Gerar Novo Token (Escopo: Repo)
+                    </a>
+                </div>
+            </div>
+            <div class="modal-footer"
+                style="padding: 20px 0 0 0; border-top: 1px solid rgba(255,255,255,0.05); text-align: right; display: flex; justify-content: flex-end; gap: 12px; margin-top: 10px;">
+                <button onclick="testGithubConnection('backup')" id="btnTestBackup"
+                    style="margin-right: auto; padding: 10px 20px; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s;">Testar
+                    Conexão</button>
+                <button onclick="saveGithubConfig('backup')"
+                    style="padding: 10px 30px; background: #22c55e; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);">Salvar
+                    Backup</button>
+                <button onclick="closeModal('githubBackupModal')"
+                    style="padding: 10px 20px; background: transparent; color: #94a3b8; border: none; cursor: pointer; font-weight: 600;">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Configuração GitHub - PROJETO (ROOT ONLY) -->
+    {% if session.get('role') == 'root' %}
+    <div id="githubProjectModal" class="modal-overlay">
+        <div class="modal modal-premium dashboard-modal">
+            <div class="modal-header"
+                style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 15px; margin-bottom: 20px;">
+                <h3
+                    style="margin:0; font-size: 1.4rem; background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; white-space: nowrap;">
+                    Gestão de Versões (CI/CD)</h3>
+                <button class="close-modal-btn" onclick="closeModal('githubProjectModal')"
+                    style="background: rgba(255,255,255,0.05); border: none; color: #fff; border-radius: 50%; width: 32px; height: 32px; cursor: pointer;">×</button>
+            </div>
+            <div class="modal-body" style="padding: 10px 0;">
+                <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 25px;">Gerencie o repositório principal
+                    para sincronizar código e atualizações do sistema.</p>
+
+                <div class="form-group" style="margin-bottom: 20px;">
+                    <label
+                        style="font-size: 0.75rem; color: #38bdf8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 8px;">Repositório
+                        do Código Fonte:</label>
+                    <input type="text" id="ghRepoUrlProj" placeholder="https://github.com/usuario/projeto.git"
+                        oninput="updateGithubTokenLink('project'); hideSyncButton();"
+                        style="width: 100%; border: 1px solid rgba(56, 189, 248, 0.2); background: rgba(15, 23, 42, 0.6); color: #fff; padding: 12px; border-radius: 8px; outline: none; transition: all 0.2s;">
+                </div>
+                <div class="form-group" style="margin-bottom: 10px;">
+                    <label
+                        style="font-size: 0.75rem; color: #38bdf8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 8px;">Token
+                        de Acesso Root:</label>
+                    <input type="password" id="ghTokenProj" placeholder="ghp_xxxxxxxxxxxx" oninput="hideSyncButton();"
+                        style="width: 100%; border: 1px solid rgba(56, 189, 248, 0.2); background: rgba(15, 23, 42, 0.6); color: #fff; padding: 12px; border-radius: 8px; outline: none; transition: all 0.2s;">
+                    <a id="ghTokenLinkProj"
+                        href="https://github.com/settings/tokens/new?scopes=repo&description=EduAgenda%20CI%20Project"
+                        target="_blank"
+                        style="display: inline-block; font-size: 0.75rem; color: #38bdf8; margin-top: 10px; text-decoration: none; font-weight: 600; padding: 4px 8px; background: rgba(56, 189, 248, 0.1); border-radius: 4px; transition: all 0.2s;">
+                        + Gerar Novo Token Root (Escopo: Repo)
+                    </a>
+                </div>
+            </div>
+            <div class="modal-footer"
+                style="padding: 20px 0 0 0; border-top: 1px solid rgba(255,255,255,0.05); text-align: right; display: flex; justify-content: flex-end; gap: 12px; margin-top: 10px;">
+                <button onclick="testGithubConnection('project')" id="btnTestProj"
+                    style="margin-right: auto; padding: 10px 20px; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s;">Testar
+                    Conexão</button>
+
+                <button onclick="saveGithubConfig('project')"
+                    style="padding: 10px 30px; background: #22c55e; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);">Salvar
+                    Projeto</button>
+
+                <button onclick="syncProject()" id="btnSyncProject"
+                    style="display: none; padding: 10px 20px; background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; cursor: pointer; font-weight: 700; transition: all 0.2s;">
+                    Sincronizar Agora
+                </button>
+
+                <button onclick="closeModal('githubProjectModal')"
+                    style="padding: 10px 20px; background: transparent; color: #94a3b8; border: none; cursor: pointer; font-weight: 600;">Cancelar</button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    <div id="managePasswordsModal" class="modal-overlay">
+        <div class="modal modal-premium"
+            style="width: 95% !important; max-width: 1400px !important; height: 90vh; display: flex; flex-direction: column; padding: 30px; border-radius: 16px; position: relative; overflow: hidden;">
+
+            <div class="modal-header"
+                style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 15px;">
+                <div style="display: flex; flex-direction: column;">
+                    <h2
+                        style="margin:0; font-size: 1.6rem; background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%); background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent; white-space: nowrap;">
+                        Gerenciar Senhas de Usuários</h2>
+                    <p style="margin: 5px 0 0 0; color: #94a3b8; font-size: 0.9rem;">Resetar senha para o padrão:
+                        <code>@Senha123456</code>
+                    </p>
+                </div>
+                <button onclick="closeModal('managePasswordsModal')"
+                    style="background:rgba(255, 255, 255, 0.05); border:none; color:#ffffff; cursor:pointer; width: 40px; height: 40px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; transition: all 0.2s;">&times;</button>
+            </div>
+
+            <div class="modal-body" style="flex: 1; overflow-y: auto; padding-right: 10px;">
+                <table class="premium-table">
+                    <thead>
+                        <tr>
+                            <th>Nome Completo</th>
+                            <th>ID Usuário</th>
+                            <th>Nível de Acesso</th>
+                            <th style="text-align: right;">Ações de Segurança</th>
+                        </tr>
+                    </thead>
+                    <tbody id="userPasswordsList">
+                        <!-- Preenchido via JS -->
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="modal-footer" style="margin-top: 20px; display: flex; justify-content: flex-end;">
+                <button class="btn-dashboard" onclick="closeModal('managePasswordsModal')"
+                    style="padding: 10px 25px; border-radius: 8px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2); color: #38bdf8; cursor: pointer; font-weight: 700;">Fechar
+                    Painel</button>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>
