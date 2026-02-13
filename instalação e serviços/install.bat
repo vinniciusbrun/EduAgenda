@@ -5,18 +5,6 @@ echo ==========================================
 echo   EduAgenda - Instalador e Configurador
 echo ==========================================
 
-:: Detectar se estamos na pasta raiz ou em 'instalacao e servicos'
-if exist "app.py" (
-    set BASE_DIR=.
-) else if exist "..\app.py" (
-    set BASE_DIR=..
-) else (
-    echo [!] Erro: Nao foi possivel localizar os arquivos do projeto.
-    echo [!] Execute este script a partir da pasta do EduAgenda.
-    pause
-    exit /b
-)
-
 :: 1. Verificar Python
 echo [*] Verificando Python...
 python --version >nul 2>&1
@@ -27,10 +15,40 @@ echo [*] Verificando Git...
 git --version >nul 2>&1
 if errorlevel 1 goto :no_git
 
-:: 3. Mover para a base do projeto
+:: 3. Detectar se o projeto ja existe aqui ou em cima
+if exist "app.py" (
+    set BASE_DIR=.
+    goto :files_found
+)
+if exist "..\app.py" (
+    set BASE_DIR=..
+    goto :files_found
+)
+
+:: 4. Se nao encontrou, e uma instalacao "Zero"
+echo [!] Arquivos do sistema nao encontrados nesta pasta.
+set /p clone="Deseja baixar (Sincronizar) o EduAgenda do GitHub agora? (S/N): "
+if /i "%clone%" neq "s" goto :no_files
+
+echo [*] Inicializando e baixando arquivos (Sincronizando)...
+git init >nul 2>&1
+git remote add origin https://github.com/vinniciusbrun/EduAgenda.git >nul 2>&1
+git pull origin master
+if errorlevel 1 goto :clone_error
+
+set BASE_DIR=.
+goto :files_found
+
+:no_files
+echo [!] Erro: Nao foi possivel localizar os arquivos do projeto.
+echo [!] Certifique-se de estar na pasta correta ou responda 'S' para baixar.
+pause
+exit /b
+
+:files_found
 cd /d "%BASE_DIR%"
 
-:: 4. Criar VENV se nao existir
+:: 5. Criar VENV
 if exist "venv" goto :venv_exists
 echo [*] Criando ambiente virtual (venv)...
 python -m venv venv
@@ -41,20 +59,19 @@ goto :venv_done
 echo [*] Ambiente virtual ja existe.
 :venv_done
 
-:: 5. Garantir Git Init
-if exist ".git" goto :git_ready
-echo [*] Inicializando repositorio Git para atualizacoes...
-git init >nul 2>&1
-git config user.name "Usuario EduAgenda"
-git config user.email "usuario@eduagenda.local"
-git remote add origin https://github.com/vinniciusbrun/EduAgenda.git >nul 2>&1
-:git_ready
-
 :: 6. Instalar Dependencias
-echo [*] Instalando/Atualizando dependencias...
+echo [*] Instalando/Atualizando dependencias (isso pode demorar)...
 if not exist "venv\Scripts\activate.bat" goto :venv_missing
 call "venv\Scripts\activate.bat"
-python -m pip install --upgrade pip >nul 2>&1
+
+:: Garante ferramentas de build atualizadas para evitar erros de compilacao
+python -m pip install --upgrade pip setuptools wheel >nul 2>&1
+
+:: Instala numpy primeiro (base para o pandas) para evitar conflitos de build
+echo [*] Configurando bibliotecas base...
+pip install numpy==1.26.2
+
+echo [*] Instalando demais pacotes...
 pip install -r requirements.txt
 if errorlevel 1 goto :pip_error
 
@@ -77,10 +94,12 @@ pause
 exit /b
 
 :no_git
-echo [!] Git nao encontrado.
-echo [!] 1. Baixe e instale: https://git-scm.com/
-echo [!] 2. Apos instalar, REINICIE este terminal ou o computador.
-echo [!] 3. Execute este instalador novamente.
+echo [!] Git nao encontrado. Instale: https://git-scm.com/
+pause
+exit /b
+
+:clone_error
+echo [!] Erro ao clonar o repositorio. Verifique sua conexao.
 pause
 exit /b
 
