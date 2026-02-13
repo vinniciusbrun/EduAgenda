@@ -42,7 +42,7 @@ class Updater:
         return os.path.exists('venv') or hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix)
 
     @staticmethod
-    def sync_push(repo_url, token):
+    def sync_push(repo_url, token, force=False):
         """
         Synthesizes the developer flow: Incs version, commits non-data files, and pushes.
         Public Repo Safe version: Relies on .gitignore and clean history.
@@ -88,12 +88,13 @@ class Updater:
             clean_repo = repo_url.replace("https://", "").replace("http://", "")
             auth_url = f"https://{token}@{clean_repo}"
 
-            # 5. Tentar Pull antes de tudo para evitar rejeição
-            try:
-                subprocess.run(['git', 'pull', auth_url, current_branch, '--rebase', '--allow-unrelated-histories'], 
-                               cwd=cwd, capture_output=True, text=True)
-            except:
-                pass
+            # 5. Tentar Pull antes de tudo para evitar rejeição (se não for forçado)
+            if not force:
+                try:
+                    subprocess.run(['git', 'pull', auth_url, current_branch, '--rebase', '--allow-unrelated-histories'], 
+                                   cwd=cwd, capture_output=True, text=True)
+                except:
+                    pass
 
             # 6. Executar Fluxo Git Seguro
             # Remove arquivos protegidos da cache (caso já estejam sendo rastreados)
@@ -108,13 +109,22 @@ class Updater:
             subprocess.run(['git', 'commit', '-m', msg], cwd=cwd, capture_output=True)
 
             # Push Autenticado
-            res = subprocess.run(['git', 'push', auth_url, current_branch], cwd=cwd, capture_output=True, text=True)
+            push_cmd = ['git', 'push', auth_url, current_branch]
+            if force:
+                push_cmd.append('--force')
+                
+            res = subprocess.run(push_cmd, cwd=cwd, capture_output=True, text=True)
             
             if res.returncode != 0:
-                # Se falhar por causa de 'push protection' ou similar, avisa o usuário
                 error_msg = res.stderr
+                # Erro comum de histórico divergente
+                if "fetch first" in error_msg or "rejected" in error_msg:
+                    return False, "REJECTED_HISTORY"
+                
+                # Push Protection
                 if "GH013" in error_msg or "PUSH PROTECTION" in error_msg:
                     return False, "Push Bloqueado pelo GitHub: Foram detectados segredos (tokens/senhas). Limpe o histórico do Git primeiro."
+                
                 raise Exception(f"Git Push Failed: {error_msg}")
                 
             return True, f"Versão {new_version} enviada com sucesso para branch '{current_branch}'!"

@@ -1331,24 +1331,37 @@ async function installUpdate() {
     }
 }
 
-async function syncProject() {
-    if (!confirm('Isso enviará as alterações locais para o repositório remoto (Push). Continuar?')) return;
+async function syncProject(force = false) {
+    const confirmMsg = force
+        ? 'ATENÇÃO: Isso irá SOBRESCREVER o repositório remoto com seus arquivos locais. Use apenas se você mudou de repositório ou quer forçar o estado local como oficial. Continuar?'
+        : 'Isso enviará as alterações locais para o repositório remoto (Push). Continuar?';
+
+    if (!confirm(confirmMsg)) return;
 
     const btn = document.getElementById('btnSyncProject');
     if (btn) {
         btn.disabled = true;
-        btn.innerText = "Sincronizando...";
+        btn.innerText = force ? "Forçando Sinc..." : "Sincronizando...";
     }
 
-    showToast('Sincronizando com GitHub... (Pode demorar)', 'info');
+    showToast(force ? 'Forçando sincronização...' : 'Sincronizando com GitHub...', 'info');
 
     try {
-        const res = await fetch('/api/update/sync', { method: 'POST' });
+        const res = await fetch('/api/update/sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ force: force })
+        });
         const data = await res.json();
 
         if (data.success) {
-            showToast('Sincronização concluída com sucesso!', 'success');
+            showToast('Sincronização concluída!', 'success');
             alert("Sucesso:\n" + data.message);
+        } else if (data.message === "REJECTED_HISTORY") {
+            // Caso especial: Histórico divergiu ou troca de repo
+            if (confirm("O histórico do repositório mudou ou divergiu (comum ao trocar de repositório).\n\nDeseja FORÇAR o envio dos arquivos locais? (Isso sobrescreverá o remoto)")) {
+                syncProject(true); // Chama novamente com force=true
+            }
         } else {
             showToast(`Erro na sincronização.`, 'error');
             alert("Erro:\n" + data.message);

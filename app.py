@@ -1702,7 +1702,10 @@ def sync_update_endpoint():
     repo_url = config.get('github_repo_proj') or config.get('github_repo')
     token = config.get('github_token_proj') or config.get('github_token')
     
-    success, message = Updater.sync_push(repo_url, token)
+    # Verifica se deve forçar o push (ex: troca de repositório)
+    force = request.json.get('force', False) if request.is_json else False
+    
+    success, message = Updater.sync_push(repo_url, token, force=force)
     return jsonify({"success": success, "message": message})
 
 @app.route('/api/update/install', methods=['POST'])
