@@ -61,32 +61,77 @@ echo [*] Python detectado: %PY_VER% (%PY_CMD%)
 git --version >nul 2>&1
 if errorlevel 1 goto :git_still_missing
 
-:: 4. Detectar se o projeto ja existe aqui ou em cima
+:: 4. Detectar o Diretorio Raiz do Projeto
+set "TARGET_DIR=%CD%"
+set "WAS_IN_SUBFOLDER=0"
+
+:: Verifica se o usuario rodou de dentro da pasta de instalacao
+echo %CD% | findstr /i "instalação e serviços" >nul
+if errorlevel 0 (
+    if not exist "app.py" (
+        set "WAS_IN_SUBFOLDER=1"
+        set "TARGET_DIR=%CD%\.."
+    )
+)
+
+cd /d "%TARGET_DIR%"
+echo [*] Pasta de instalacao: %TARGET_DIR%
+
+:: 4.1 Verificar se o projeto ja existe
 if exist "app.py" (
     set BASE_DIR=.
     goto :files_found
 )
-if exist "..\app.py" (
-    set BASE_DIR=..
-    goto :files_found
-)
 
-:: 5. Se nao encontrou, e uma instalacao "Zero" (Sincronizar)
-echo [!] Arquivos do sistema nao encontrados nesta pasta.
-set /p clone="Deseja baixar (Sincronizar) o EduAgenda do GitHub agora? (S/N): "
+:: 5. Instalacao "Zero" (Sincronizar Repositorio)
+echo.
+echo [!] Sistema nao detectado em: %TARGET_DIR%
+set /p clone="Deseja baixar (Sincronizar) o EduAgenda completo agora? (S/N): "
 if /i "%clone%" neq "s" goto :no_files
 
-echo [*] Inicializando e baixando arquivos (Sincronizando)...
-git init >nul 2>&1
+echo [*] Inicializando repositorio Git...
+git init
+if errorlevel 1 goto :git_error
+
 git remote add origin https://github.com/vinniciusbrun/EduAgenda.git >nul 2>&1
-git pull origin master
+
+echo [*] Baixando arquivos do sistema (Sincronismo Forçado)...
+echo [*] Isso pode demorar alguns minutos dependendo da sua internet.
+git fetch --all --depth 1
+if errorlevel 1 (
+    echo [!] Erro ao conectar com o GitHub. Verifique sua internet.
+    pause
+    exit /b
+)
+
+:: Tenta master primeiro, depois main
+echo [*] Restaurando arquivos (master)...
+git reset --hard origin/master >nul 2>&1
+if errorlevel 1 (
+    echo [*] Tentando branch alternativa (main)...
+    git reset --hard origin/main >nul 2>&1
+)
+
 if errorlevel 1 goto :clone_error
+
+:: Verifica se baixou o essencial
+if not exist "requirements.txt" (
+    echo [!] ERRO: Sincronismo concluido, mas 'requirements.txt' ainda falta.
+    echo [!] Verifique se voce tem permissoes de escrita nesta pasta.
+    pause
+    exit /b
+)
 
 set BASE_DIR=.
 goto :files_found
 
 :no_files
-echo [!] Erro: Nao foi possivel localizar ou baixar os arquivos do projeto.
+echo [!] Cancelado. Nao foi possivel localizar os arquivos do projeto.
+pause
+exit /b
+
+:git_error
+echo [!] Erro ao inicializar o Git no diretorio atual. Verifique permissoes.
 pause
 exit /b
 
