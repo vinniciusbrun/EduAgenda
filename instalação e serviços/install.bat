@@ -15,8 +15,9 @@ for /f "tokens=*" %%a in ('powershell -command "[System.Environment]::GetEnviron
 :: 2. Verificar Python Pos-Bootstrap
 echo [*] Validando ambiente...
 
-:: Tenta primeiro o launcher 'py' que e mais robusto
-py --version >nul 2>&1
+set PY_CMD=
+:: Tenta primeiro o launcher 'py' que e mais robusto, mas apenas se houver uma versao instalada
+py -0 >nul 2>&1
 if errorlevel 0 (
     set PY_CMD=py
     goto :python_ok
@@ -31,14 +32,30 @@ for /f "tokens=*" %%p in ('where python 2^>nul') do (
     )
 )
 
+:: Se nada funcionou, tenta procurar no local padrao que o bootstrap deveria ter instalado
+if exist "%ProgramFiles%\Python312\python.exe" (
+    set "PY_CMD=%ProgramFiles%\Python312\python.exe"
+    goto :python_ok
+)
+if exist "%LocalAppData%\Programs\Python\Python312\python.exe" (
+    set "PY_CMD=%LocalAppData%\Programs\Python\Python312\python.exe"
+    goto :python_ok
+)
+
 goto :python_still_missing
 
 :python_ok
-:: Detectar versao para logs
-for /f "tokens=2 delims= " %%v in ('%PY_CMD% --version 2^>^&1') do (
+:: Detectar versao real para logs
+for /f "tokens=*" %%v in ('%PY_CMD% -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')" 2^>nul') do (
     set PY_VER=%%v
 )
-echo [*] Python OK: %PY_VER% (%PY_CMD%)
+
+if "%PY_VER%"=="" (
+    echo [!] ERRO: O comando '%PY_CMD%' existe mas nao executou o Python corretamente.
+    goto :python_still_missing
+)
+
+echo [*] Python detectado: %PY_VER% (%PY_CMD%)
 
 :: 3. Verificar GIT Pos-Bootstrap
 git --version >nul 2>&1
@@ -79,7 +96,11 @@ cd /d "%BASE_DIR%"
 :: 6. Criar VENV
 if exist "venv" goto :venv_exists
 echo [*] Criando ambiente virtual (venv)...
-python -m venv venv
+%PY_CMD% -m venv venv
+if errorlevel 1 (
+    echo [!] Erro ao criar ambiente virtual com '%PY_CMD%'. Tentando com 'python'...
+    python -m venv venv
+)
 if errorlevel 1 goto :venv_error
 goto :venv_done
 
