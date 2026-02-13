@@ -1,0 +1,15 @@
+data/
+venv/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+temp_uploads/
+.backups/
+
+# Excel Files
+*.xlsx
+*.xls
+*.log
+debug_log.txt
+*.bak
