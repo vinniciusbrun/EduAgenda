@@ -9,19 +9,36 @@ echo ==========================================
 echo [*] Iniciando auto-instalador de dependencias...
 powershell -ExecutionPolicy Bypass -File "%~dp0bootstrap.ps1"
 
-:: Recarregar PATH para esta sessao (Simulacao via PS)
+:: Recarregar PATH de forma agressiva (Sistema + Usuario + Caminhos comuns)
 for /f "tokens=*" %%a in ('powershell -command "[System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User')"') do set "PATH=%%a"
 
 :: 2. Verificar Python Pos-Bootstrap
 echo [*] Validando ambiente...
-python --version >nul 2>&1
-if errorlevel 1 goto :python_still_missing
 
+:: Tenta primeiro o launcher 'py' que e mais robusto
+py --version >nul 2>&1
+if errorlevel 0 (
+    set PY_CMD=py
+    goto :python_ok
+)
+
+:: Tenta 'python' mas verifica se nao e o shim da Windows Store
+for /f "tokens=*" %%p in ('where python 2^>nul') do (
+    echo %%p | findstr /i "WindowsApps" >nul
+    if errorlevel 1 (
+        set PY_CMD=python
+        goto :python_ok
+    )
+)
+
+goto :python_still_missing
+
+:python_ok
 :: Detectar versao para logs
-for /f "tokens=2 delims= " %%v in ('python --version') do (
+for /f "tokens=2 delims= " %%v in ('%PY_CMD% --version 2^>^&1') do (
     set PY_VER=%%v
 )
-echo [*] Python OK: %PY_VER%
+echo [*] Python OK: %PY_VER% (%PY_CMD%)
 
 :: 3. Verificar GIT Pos-Bootstrap
 git --version >nul 2>&1
