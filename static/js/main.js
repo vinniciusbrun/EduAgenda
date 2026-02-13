@@ -487,7 +487,7 @@ function closeModal(id) {
 }
 
 function openProjectGithubModal() {
-    openModal('githubProjectModal');
+    openGithubModal('project');
 }
 
 async function uploadFiles(type) {
@@ -954,22 +954,72 @@ async function handleRestore(event) {
 // --- GitHub / Nuvem Config ---
 
 function openGithubModal(type) {
-    const modalId = type === 'project' ? 'githubProjectModal' : 'githubBackupModal';
+    const isProject = type === 'project';
+    const modalId = isProject ? 'githubProjectModal' : 'githubBackupModal';
     const modal = document.getElementById(modalId);
+
     if (modal) {
         modal.style.display = 'block';
         fetch('/api/config/github')
             .then(r => r.json())
             .then(data => {
-                if (type === 'backup') {
-                    if (data.repo) document.getElementById('ghRepoUrl').value = data.repo;
-                    if (data.user) document.getElementById('ghUser').value = data.user;
-                } else if (type === 'project') {
+                // Preenchimento comum
+                if (data.repo) document.getElementById('ghRepoUrl').value = data.repo;
+                if (data.user) document.getElementById('ghUser').value = data.user;
+                if (data.token) document.getElementById('ghToken').value = data.token;
+
+                if (isProject) {
                     if (data.repo_proj) document.getElementById('ghRepoUrlProj').value = data.repo_proj;
+                    if (data.token_proj) document.getElementById('ghTokenProj').value = data.token_proj;
+                    if (data.obs_proj) document.getElementById('ghRepoObsProj').value = data.obs_proj;
+
+                    // Renderiza Histórico
+                    renderGithubHistory(data.project_repos || []);
+
+                    // Mostra botão de sincronização se houver repo configurado
+                    const btnSync = document.getElementById('btnSyncProject');
+                    if (btnSync) btnSync.style.display = data.repo_proj ? 'block' : 'none';
                 }
             })
-            .catch(err => console.log("Erro ao buscar configurações: ", err));
+            .catch(err => console.error("Erro ao buscar configurações: ", err));
     }
+}
+
+let githubHistoryCache = [];
+function renderGithubHistory(repos) {
+    githubHistoryCache = repos;
+    const list = document.getElementById('ghProjectHistoryList');
+    if (!list) return;
+
+    if (repos.length === 0) {
+        list.innerHTML = '<div style="text-align: center; color: #64748b; font-size: 0.8rem; margin-top: 20px;">Nenhum repositório salvo</div>';
+        return;
+    }
+
+    list.innerHTML = repos.map((r, index) => `
+        <div class="repo-history-item" onclick="selectProjectRepo(${index})" 
+             style="background: rgba(15, 23, 42, 0.4); border-left: 4px solid ${r.color || '#38bdf8'}; padding: 10px; border-radius: 6px; cursor: pointer; transition: all 0.2s; border: 1px solid rgba(255,255,255,0.05);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 4px;">
+                <span style="font-size: 0.75rem; font-weight: 700; color: ${r.color || '#38bdf8'}; word-break: break-all; margin-right: 10px;">
+                    ${r.url.split('github.com/')[1] || r.url}
+                </span>
+                <span style="font-size: 0.6rem; color: #64748b; white-space: nowrap;">${r.last_used || ''}</span>
+            </div>
+            ${r.obs ? `<div style="font-size: 0.7rem; color: #94a3b8; font-style: italic;">"${r.obs}"</div>` : ''}
+        </div>
+    `).join('');
+}
+
+function selectProjectRepo(index) {
+    const r = githubHistoryCache[index];
+    if (!r) return;
+
+    if (document.getElementById('ghRepoUrlProj')) document.getElementById('ghRepoUrlProj').value = r.url;
+    if (document.getElementById('ghTokenProj')) document.getElementById('ghTokenProj').value = r.token || '';
+    if (document.getElementById('ghRepoObsProj')) document.getElementById('ghRepoObsProj').value = r.obs || '';
+
+    showToast('Campos preenchidos!', 'info');
+    hideSyncButton(); // Força salvar antes de sincronizar se mudou
 }
 
 
@@ -1388,6 +1438,7 @@ async function saveGithubConfig(type) {
     if (isProject) {
         payload.repo_proj = document.getElementById('ghRepoUrlProj')?.value;
         payload.token_proj = document.getElementById('ghTokenProj')?.value;
+        payload.obs_proj = document.getElementById('ghRepoObsProj')?.value;
     } else {
         payload.repo = document.getElementById('ghRepoUrl')?.value;
         payload.user = document.getElementById('ghUser')?.value;
@@ -1404,9 +1455,10 @@ async function saveGithubConfig(type) {
         if (data.success) {
             showToast('Configurações salvas com sucesso!', 'success');
             if (isProject) {
-                // Mostra o botão de sincronizar se o salvamento foi um sucesso
                 const btnSync = document.getElementById('btnSyncProject');
                 if (btnSync) btnSync.style.display = 'block';
+                // Recarrega modal para atualizar histórico
+                openGithubModal('project');
             } else {
                 closeModal('githubBackupModal');
             }
@@ -1418,11 +1470,14 @@ async function saveGithubConfig(type) {
     }
 }
 
+// Função testGithubConnection removida para usar a versão robusta acima (ou unificada aqui)
 async function testGithubConnection(type) {
-    const isProject = type === 'project';
-    const payload = { action: 'test' };
+    const isProj = type === 'project';
+    const btnId = isProj ? 'btnTestProj' : 'btnTestBackup';
+    const btn = document.getElementById(btnId);
 
-    if (isProject) {
+    const payload = { action: 'test' };
+    if (isProj) {
         payload.repo_proj = document.getElementById('ghRepoUrlProj')?.value;
         payload.token_proj = document.getElementById('ghTokenProj')?.value;
     } else {
@@ -1431,21 +1486,24 @@ async function testGithubConnection(type) {
         payload.token = document.getElementById('ghToken')?.value;
     }
 
-    showToast('Testando conexão...', 'info');
+    if (btn) {
+        btn.disabled = true;
+        const oldText = btn.innerText;
+        btn.innerText = "Testando...";
 
-    try {
-        const res = await fetch('/api/config/github', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const data = await res.json();
-        if (data.success) {
+        try {
+            const res = await fetch('/api/config/github', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
             alert("Resultado do Teste:\n" + data.message);
-        } else {
-            alert("Falha no Teste:\n" + data.message);
+        } catch (e) {
+            alert("Erro ao testar conexão: " + e);
+        } finally {
+            btn.disabled = false;
+            btn.innerText = oldText;
         }
-    } catch (e) {
-        alert("Erro ao testar conexão.");
     }
 }

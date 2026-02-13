@@ -10,6 +10,14 @@ echo [*] Verificando Python...
 python --version >nul 2>&1
 if errorlevel 1 goto :no_python
 
+:: Detectar versao experimental (3.14+)
+for /f "tokens=2 delims= " %%v in ('python --version') do (
+    set PY_VER=%%v
+)
+echo [*] Versao detectada: %PY_VER%
+if "%PY_VER:~0,4%"=="3.14" goto :experimental_python
+if "%PY_VER:~0,4%"=="3.15" goto :experimental_python
+
 :: 2. Verificar GIT
 echo [*] Verificando Git...
 git --version >nul 2>&1
@@ -31,6 +39,7 @@ set /p clone="Deseja baixar (Sincronizar) o EduAgenda do GitHub agora? (S/N): "
 if /i "%clone%" neq "s" goto :no_files
 
 echo [*] Inicializando e baixando arquivos (Sincronizando)...
+:: Garante que pastas com arquivos ocultos nao travem o processo
 git init >nul 2>&1
 git remote add origin https://github.com/vinniciusbrun/EduAgenda.git >nul 2>&1
 git pull origin master
@@ -60,19 +69,21 @@ echo [*] Ambiente virtual ja existe.
 :venv_done
 
 :: 6. Instalar Dependencias
-echo [*] Instalando/Atualizando dependencias (isso pode demorar)...
+echo [*] Configurando ambiente Python...
 if not exist "venv\Scripts\activate.bat" goto :venv_missing
 call "venv\Scripts\activate.bat"
 
-:: Garante ferramentas de build atualizadas para evitar erros de compilacao
-python -m pip install --upgrade pip setuptools wheel >nul 2>&1
+echo [*] Atualizando instalador (pip)...
+python -m pip install --upgrade pip
 
-:: Instala numpy primeiro (base para o pandas) para evitar conflitos de build
-echo [*] Configurando bibliotecas base...
-pip install numpy==1.26.2
+echo [*] Instalando bibliotecas base (Modo Binario Forcado)...
+:: Forca o uso de binarios (wheels) para evitar erros de compilacao. 
+:: Python 3.11/3.12 tem wheels prontos. 3.14+ Nao tem.
+python -m pip install --only-binary :all: numpy==1.26.4 pandas==2.2.2 openpyxl==3.1.2
+if errorlevel 1 goto :binary_error
 
-echo [*] Instalando demais pacotes...
-pip install -r requirements.txt
+echo [*] Instalando demais requisitos...
+python -m pip install --prefer-binary -r requirements.txt
 if errorlevel 1 goto :pip_error
 
 echo.
@@ -84,6 +95,56 @@ echo   1. Use o arquivo 'start_hidden.vbs' para iniciar.
 echo   2. No sistema, va em 'Configuracoes' para 
 echo      vincular seu GitHub e ativar atualizacoes.
 echo ==========================================
+pause
+exit /b
+
+:experimental_python
+echo.
+echo [!] ALERTA: Voce esta usando o Python %PY_VER% (Experimental).
+echo [!] Bibliotecas como 'numpy' e 'pandas' ainda NAO tem arquivos prontos
+echo [!] para esta versao do Python. A instalacao vai falhar.
+echo [!] RECOMENDACAO: Instale o Python 3.11 ou 3.12 (Estaveis).
+echo.
+pause
+exit /b
+
+:no_python
+echo [!] Python nao encontrado no PATH.
+echo [!] Por favor, instale o Python e MARQUE a opcao 'Add Python to PATH'.
+pause
+exit /b
+
+:no_git
+echo [!] Git nao encontrado. Instale: https://git-scm.com/
+pause
+exit /b
+
+:clone_error
+echo [!] Erro ao sincronizar. Verifique se a pasta esta vazia ou se ha internet.
+pause
+exit /b
+
+:venv_error
+echo [!] Erro ao criar venv. 
+pause
+exit /b
+
+:venv_missing
+echo [!] Erro: Ambiente virtual nao encontrado (venv).
+pause
+exit /b
+
+:pip_error
+echo [!] Erro ao instalar dependencias.
+pause
+exit /b
+
+:binary_error
+echo.
+echo [!] ERRO: Nao foi possivel encontrar bibliotecas prontas para seu Python.
+echo [!] Isso acontece porque sua versao do Python e muito nova ou 32-bits.
+echo [!] RECOMENDACAO: Use Python 3.11 ou 3.12 (64-bits).
+echo.
 pause
 exit /b
 

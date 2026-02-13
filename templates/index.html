@@ -982,7 +982,7 @@
     <!-- Modal Configuração GitHub - PROJETO (ROOT ONLY) -->
     {% if session.get('role') == 'root' %}
     <div id="githubProjectModal" class="modal-overlay">
-        <div class="modal modal-premium dashboard-modal">
+        <div class="modal modal-premium dashboard-modal" style="max-width: 900px !important;">
             <div class="modal-header"
                 style="border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 15px; margin-bottom: 20px;">
                 <h3
@@ -991,32 +991,65 @@
                 <button class="close-modal-btn" onclick="closeModal('githubProjectModal')"
                     style="background: rgba(255,255,255,0.05); border: none; color: #fff; border-radius: 50%; width: 32px; height: 32px; cursor: pointer;">×</button>
             </div>
-            <div class="modal-body" style="padding: 10px 0;">
-                <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 25px;">Gerencie o repositório principal
-                    para sincronizar código e atualizações do sistema.</p>
 
-                <div class="form-group" style="margin-bottom: 20px;">
-                    <label
-                        style="font-size: 0.75rem; color: #38bdf8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 8px;">Repositório
-                        do Código Fonte:</label>
-                    <input type="text" id="ghRepoUrlProj" placeholder="https://github.com/usuario/projeto.git"
-                        oninput="updateGithubTokenLink('project'); hideSyncButton();"
-                        style="width: 100%; border: 1px solid rgba(56, 189, 248, 0.2); background: rgba(15, 23, 42, 0.6); color: #fff; padding: 12px; border-radius: 8px; outline: none; transition: all 0.2s;">
+            <div class="modal-body" style="padding: 10px 0; display: flex; gap: 30px;">
+                <!-- Coluna Esquerda: Configuração -->
+                <div style="flex: 1.2; display: flex; flex-direction: column; gap: 15px;">
+                    <p style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 5px;">Configure o repositório principal
+                        para sincronizar código e atualizações do sistema.</p>
+
+                    <div class="form-group">
+                        <label
+                            style="font-size: 0.7rem; color: #38bdf8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px;">
+                            Repositório do Código Fonte:
+                        </label>
+                        <input type="text" id="ghRepoUrlProj" placeholder="https://github.com/usuario/projeto.git"
+                            oninput="updateGithubTokenLink('project'); hideSyncButton();"
+                            style="width: 100%; border: 1px solid rgba(56, 189, 248, 0.2); background: rgba(15, 23, 42, 0.6); color: #fff; padding: 10px; border-radius: 8px; outline: none;">
+                    </div>
+
+                    <div class="form-group">
+                        <label
+                            style="font-size: 0.7rem; color: #38bdf8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px;">
+                            Token de Acesso Root:
+                        </label>
+                        <input type="password" id="ghTokenProj" placeholder="ghp_xxxxxxxxxxxx"
+                            oninput="hideSyncButton();"
+                            style="width: 100%; border: 1px solid rgba(56, 189, 248, 0.2); background: rgba(15, 23, 42, 0.6); color: #fff; padding: 10px; border-radius: 8px; outline: none;">
+                        <a id="ghTokenLinkProj" href="https://github.com/settings/tokens/new?scopes=repo"
+                            target="_blank"
+                            style="display: inline-block; font-size: 0.7rem; color: #38bdf8; margin-top: 6px; text-decoration: none; opacity: 0.8;">
+                            + Gerar Novo Token Root
+                        </a>
+                    </div>
+
+                    <div class="form-group">
+                        <label
+                            style="font-size: 0.7rem; color: #38bdf8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 6px;">
+                            Observações do Ambiente:
+                        </label>
+                        <input type="text" id="ghRepoObsProj" placeholder="Ex: Produção, Servidor de Testes..."
+                            style="width: 100%; border: 1px solid rgba(56, 189, 248, 0.2); background: rgba(15, 23, 42, 0.4); color: #fff; padding: 10px; border-radius: 8px; outline: none;">
+                    </div>
                 </div>
-                <div class="form-group" style="margin-bottom: 10px;">
-                    <label
-                        style="font-size: 0.75rem; color: #38bdf8; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; display: block; margin-bottom: 8px;">Token
-                        de Acesso Root:</label>
-                    <input type="password" id="ghTokenProj" placeholder="ghp_xxxxxxxxxxxx" oninput="hideSyncButton();"
-                        style="width: 100%; border: 1px solid rgba(56, 189, 248, 0.2); background: rgba(15, 23, 42, 0.6); color: #fff; padding: 12px; border-radius: 8px; outline: none; transition: all 0.2s;">
-                    <a id="ghTokenLinkProj"
-                        href="https://github.com/settings/tokens/new?scopes=repo&description=EduAgenda%20CI%20Project"
-                        target="_blank"
-                        style="display: inline-block; font-size: 0.75rem; color: #38bdf8; margin-top: 10px; text-decoration: none; font-weight: 600; padding: 4px 8px; background: rgba(56, 189, 248, 0.1); border-radius: 4px; transition: all 0.2s;">
-                        + Gerar Novo Token Root (Escopo: Repo)
-                    </a>
+
+                <!-- Coluna Direita: Histórico -->
+                <div
+                    style="flex: 0.8; background: rgba(0,0,0,0.2); border-radius: 12px; padding: 15px; display: flex; flex-direction: column;">
+                    <h4
+                        style="margin: 0 0 15px 0; font-size: 0.8rem; color: #cbd5e1; text-transform: uppercase; letter-spacing: 0.1em;">
+                        Histórico de Ambientes
+                    </h4>
+                    <div id="ghProjectHistoryList"
+                        style="flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; max-height: 280px;">
+                        <!-- Preenchido via JS -->
+                        <div style="text-align: center; color: #64748b; font-size: 0.8rem; margin-top: 20px;">
+                            Nenhum repositório salvo
+                        </div>
+                    </div>
                 </div>
             </div>
+
             <div class="modal-footer"
                 style="padding: 20px 0 0 0; border-top: 1px solid rgba(255,255,255,0.05); text-align: right; display: flex; justify-content: flex-end; gap: 12px; margin-top: 10px;">
                 <button onclick="testGithubConnection('project')" id="btnTestProj"
@@ -1024,11 +1057,11 @@
                     Conexão</button>
 
                 <button onclick="saveGithubConfig('project')"
-                    style="padding: 10px 30px; background: #22c55e; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 700; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.2);">Salvar
-                    Projeto</button>
+                    style="padding: 10px 30px; background: #22c55e; color: #fff; border: none; border-radius: 8px; cursor: pointer; font-weight: 700;">Salvar
+                    Configuração</button>
 
                 <button onclick="syncProject()" id="btnSyncProject"
-                    style="display: none; padding: 10px 20px; background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; cursor: pointer; font-weight: 700; transition: all 0.2s;">
+                    style="display: none; padding: 10px 20px; background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 8px; cursor: pointer; font-weight: 700;">
                     Sincronizar Agora
                 </button>
 

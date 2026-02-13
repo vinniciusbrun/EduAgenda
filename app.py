@@ -1486,10 +1486,14 @@ def config_github_route():
         cfg = get_config()
         data = {
             "repo": cfg.get('github_repo', ''),
-            "user": cfg.get('github_user', '')
+            "user": cfg.get('github_user', ''),
+            "token": cfg.get('github_token', '') if is_root() else '',
+            "project_repos": cfg.get('project_repos', [])
         }
         if is_root():
             data["repo_proj"] = cfg.get('github_repo_proj', '')
+            data["token_proj"] = cfg.get('github_token_proj', '')
+            data["obs_proj"] = cfg.get('github_obs_proj', '')
         return jsonify(data)
 
     data = request.json
@@ -1503,6 +1507,7 @@ def config_github_route():
     # Repositório de Projeto
     repo_proj = data.get('repo_proj')
     token_proj = data.get('token_proj')
+    obs_proj = data.get('obs_proj', '')
 
     cfg = get_config()
 
@@ -1534,8 +1539,6 @@ def config_github_route():
                 url = f"https://{user_p}:{tk}@{clean}"
                 res = subprocess.run(["git", "ls-remote", url, "HEAD"], capture_output=True, text=True, timeout=10)
                 results.append(f"Projeto: {'OK' if res.returncode == 0 else 'Falha'}")
-                res = subprocess.run(["git", "ls-remote", url, "HEAD"], capture_output=True, text=True, timeout=10)
-                results.append(f"Projeto: {'OK' if res.returncode == 0 else 'Falha'}")
         
         return jsonify({"success": True, "message": " | ".join(results) if results else "Nenhum dado para testar"})
 
@@ -1545,8 +1548,38 @@ def config_github_route():
             if user_backup: cfg['github_user'] = user_backup
             if token_backup: cfg['github_token'] = token_backup
             
-            if repo_proj: cfg['github_repo_proj'] = repo_proj
-            if token_proj: cfg['github_token_proj'] = token_proj
+            if repo_proj:
+                cfg['github_repo_proj'] = repo_proj
+                cfg['github_token_proj'] = token_proj
+                cfg['github_obs_proj'] = obs_proj
+                
+                # Gerenciar Histórico de Projetos
+                repos = cfg.get('project_repos', [])
+                # Procura se já existe
+                exists = False
+                for r in repos:
+                    if r['url'] == repo_proj:
+                        r['token'] = token_proj
+                        r['obs'] = obs_proj
+                        r['last_used'] = datetime.now().strftime("%d/%m/%Y %H:%M")
+                        exists = True
+                        break
+                
+                if not exists:
+                    # Cores para o dashboard
+                    colors = ['#38bdf8', '#10b981', '#fbbf24', '#f472b6', '#a78bfa', '#f87171']
+                    color = colors[len(repos) % len(colors)]
+                    repos.insert(0, {
+                        "url": repo_proj,
+                        "token": token_proj,
+                        "obs": obs_proj,
+                        "color": color,
+                        "last_used": datetime.now().strftime("%d/%m/%Y %H:%M")
+                    })
+                
+                # Limita histórico a 10 itens
+                cfg['project_repos'] = repos[:10]
+                
             return cfg
 
         from core.models import update_config

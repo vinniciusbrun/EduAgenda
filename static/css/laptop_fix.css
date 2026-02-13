@@ -361,25 +361,23 @@ body.laptop-optimized .modal.dashboard-modal {
     overflow: hidden !important;
 }
 
-/* MODAIS DE CONFIGURAÇÃO GITHUB (Proporcionais ao conteúdo) */
+/* MODAIS DE CONFIGURAÇÃO GITHUB (Expandido para Duas Colunas) */
 body.laptop-optimized #githubBackupModal .modal,
 body.laptop-optimized #githubProjectModal .modal {
     position: fixed !important;
-    top: 62.5px !important;
-    /* Mantém topo */
-    left: 187.5px !important;
-    /* +100px cada lado (125px CSS / 0.8 zoom) */
-    right: 187.5px !important;
-    bottom: 187.5px !important;
-    /* +100px inferior */
+    top: 50px !important;
+    left: 100px !important;
+    right: 100px !important;
+    bottom: 50px !important;
     width: auto !important;
     height: auto !important;
-    max-width: none !important;
+    max-width: 1000px !important;
+    /* Alargado */
     max-height: none !important;
-    margin: 0 !important;
+    margin: 0 auto !important;
     transform: none !important;
     zoom: 0.8 !important;
-    background: rgba(15, 23, 42, 0.95) !important;
+    background: rgba(15, 23, 42, 0.98) !important;
     backdrop-filter: blur(20px) !important;
     border: 1px solid rgba(56, 189, 248, 0.3) !important;
     font-family: 'Plus Jakarta Sans', sans-serif !important;
@@ -387,6 +385,18 @@ body.laptop-optimized #githubProjectModal .modal {
     flex-direction: column !important;
     overflow: hidden !important;
     border-radius: 16px !important;
+    padding: 2rem !important;
+}
+
+/* Ajuste nos itens de histórico */
+body.laptop-optimized .repo-history-item:hover {
+    background: rgba(56, 189, 248, 0.1) !important;
+    border-color: rgba(56, 189, 248, 0.4) !important;
+    transform: translateX(4px);
+}
+
+body.laptop-optimized #ghProjectHistoryList::-webkit-scrollbar {
+    width: 4px !important;
 }
 
 /* Scrollbar Global e Universal para Laptop Mode (Aplica em tudo) */
