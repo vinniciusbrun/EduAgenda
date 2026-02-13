@@ -63,19 +63,28 @@ if errorlevel 1 goto :git_still_missing
 
 :: 4. Detectar o Diretorio Raiz do Projeto
 set "TARGET_DIR=%CD%"
-set "WAS_IN_SUBFOLDER=0"
 
 :: Verifica se o usuario rodou de dentro da pasta de instalacao
-echo %CD% | findstr /i "instalação e serviços" >nul
+:: IMPORTANTE: Usar /C: para match exato, senao o 'e' de 'EduAgenda' limpa o erro
+echo "%CD%" | findstr /I /C:"instalação e serviços" >nul
 if errorlevel 0 (
     if not exist "app.py" (
-        set "WAS_IN_SUBFOLDER=1"
+        echo [*] Detectado execução de dentro da subpasta. Ajustando para raiz...
         set "TARGET_DIR=%CD%\.."
     )
 )
 
 cd /d "%TARGET_DIR%"
-echo [*] Pasta de instalacao: %TARGET_DIR%
+
+:: Segurança: Impedir instalacao na raiz do C: ou em pastas de sistema
+if "%CD%"=="C:\" (
+    echo [!] ERRO: Nao e permitido instalar o sistema na raiz do disco (C:\).
+    echo [!] Crie uma pasta (ex: C:\EduAgenda) e coloque o instalador la.
+    pause
+    exit /b
+)
+
+echo [*] Pasta de instalacao: %CD%
 
 :: 4.1 Verificar se o projeto ja existe
 if exist "app.py" (
