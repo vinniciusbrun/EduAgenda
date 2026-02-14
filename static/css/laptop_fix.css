@@ -986,3 +986,42 @@ body.laptop-optimized #managePasswordsModal table td {
     width: auto !important;
     min-width: 160px !important;
 }
+
+/* 
+   ==========================================================================
+   FIX: SETTINGS MODAL SCROLL (Laptop)
+   ==========================================================================
+*/
+.modal-premium .tab-content,
+.dashboard-modal .tab-content,
+.dashboard-modal {
+    overflow-y: auto !important;
+}
+
+.modal-premium .tab-content {
+    max-height: calc(85vh - 80px) !important;
+    padding-right: 5px !important;
+}
+
+.dashboard-modal {
+    max-height: 95vh !important;
+}
+
+.modal-premium .tab-content.active,
+.dashboard-modal .tab-content.active {
+    display: block !important;
+}
+
+/* Scrollbar Customizada para Tabs */
+.modal-premium .tab-content::-webkit-scrollbar {
+    width: 4px !important;
+}
+
+.modal-premium .tab-content::-webkit-scrollbar-track {
+    background: rgba(0, 0, 0, 0.2) !important;
+}
+
+.modal-premium .tab-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-radius: 2px !important;
+}
