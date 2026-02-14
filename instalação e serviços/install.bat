@@ -1,7 +1,5 @@
 @echo off
-setlocal EnableDelayedExpansion
-:: Define pagina de codigo UTF-8 para lidar com acentos em pastas
-chcp 65001 >nul
+setlocal
 
 echo ==========================================
 echo   EduAgenda - Instalador e Configurador
@@ -16,21 +14,19 @@ if errorlevel 1 (
     exit /b
 )
 
-:: Recarregar PATH de forma agressiva (Sistema + Usuario + Caminhos comuns)
+:: Recarregar PATH de forma agressiva
 for /f "tokens=*" %%a in ('powershell -command "[System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User')"') do set "PATH=%%a"
 
 :: 2. Verificar Python Pos-Bootstrap
 echo [*] Validando ambiente...
 
 set PY_CMD=
-:: Tenta primeiro o launcher 'py' que e mais robusto, mas apenas se houver uma versao instalada
 py -0 >nul 2>&1
-if errorlevel 0 (
+if not errorlevel 1 (
     set PY_CMD=py
     goto :python_ok
 )
 
-:: Tenta 'python' mas verifica se nao e o shim da Windows Store
 for /f "tokens=*" %%p in ('where python 2^>nul') do (
     echo %%p | findstr /i "WindowsApps" >nul
     if errorlevel 1 (
@@ -39,7 +35,6 @@ for /f "tokens=*" %%p in ('where python 2^>nul') do (
     )
 )
 
-:: Se nada funcionou, tenta procurar no local padrao que o bootstrap deveria ter instalado
 if exist "%ProgramFiles%\Python312\python.exe" (
     set "PY_CMD=%ProgramFiles%\Python312\python.exe"
     goto :python_ok
@@ -52,15 +47,10 @@ if exist "%LocalAppData%\Programs\Python\Python312\python.exe" (
 goto :python_still_missing
 
 :python_ok
-:: Detectar versao real para logs
 for /f "tokens=*" %%v in ('%PY_CMD% -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}')" 2^>nul') do (
     set PY_VER=%%v
 )
-
-if "%PY_VER%"=="" (
-    echo [!] ERRO: O comando '%PY_CMD%' existe mas nao executou o Python corretamente.
-    goto :python_still_missing
-)
+if "%PY_VER%"=="" goto :python_still_missing
 
 echo [*] Python detectado: %PY_VER% (%PY_CMD%)
 
@@ -70,35 +60,37 @@ if errorlevel 1 goto :git_still_missing
 
 :: 4. Detectar o Diretorio Raiz do Projeto
 set "SCRIPT_DIR=%~dp0"
-:: Remove a barra final para estetica, se desejado, mas mantem a logica com barra
 echo.
 echo [i] Diagnosticando caminhos...
 echo     Script: %SCRIPT_DIR%
 
-if exist "!SCRIPT_DIR!..\app.py" (
+:: Logica simplificada sem DelayedExpansion
+if exist "%SCRIPT_DIR%..\app.py" (
     echo [*] App detectado no diretorio pai.
-    pushd "!SCRIPT_DIR!.."
-) else (
-    if exist "!SCRIPT_DIR!app.py" (
-         echo [*] App detectado no mesmo diretorio.
-         pushd "!SCRIPT_DIR!"
-    ) else (
-         echo.
-         echo [!] ERRO CRITICO: app.py nao encontrado.
-         echo     Procurado em:
-         echo     1. !SCRIPT_DIR!..\app.py
-         echo     2. !SCRIPT_DIR!app.py
-         echo.
-         pause
-         exit /b
-    )
+    pushd "%SCRIPT_DIR%.."
+    goto :found_root
 )
 
-set "TARGET_DIR=!CD!"
-echo [*] Raiz definida como: !TARGET_DIR!
-:: Volta o pushd para nao bagunçar a pilha, mas agora sabemos onde ir
+if exist "%SCRIPT_DIR%app.py" (
+    echo [*] App detectado no mesmo diretorio.
+    pushd "%SCRIPT_DIR%"
+    goto :found_root
+)
+
+echo.
+echo [!] ERRO CRITICO: app.py nao encontrado.
+echo     Procurado em:
+echo     1. %SCRIPT_DIR%..\app.py
+echo     2. %SCRIPT_DIR%app.py
+echo.
+pause
+exit /b
+
+:found_root
+set "TARGET_DIR=%CD%"
+echo [*] Raiz definida como: %TARGET_DIR%
 popd
-cd /d "!TARGET_DIR!"
+cd /d "%TARGET_DIR%"
 if "%CD%"=="C:\" (
     echo [!] ERRO: Nao e permitido instalar o sistema na raiz do disco (C:\).
     echo [!] Crie uma pasta (ex: C:\EduAgenda) e coloque o instalador la.

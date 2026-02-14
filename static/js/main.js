@@ -1526,7 +1526,10 @@ function renderSyncHistory(logs) {
         <div class="sync-log-item ${l.success ? 'success' : 'error'}">
             <div class="log-header">
                 <span class="log-time">${l.timestamp}</span>
-                <span class="log-type">${l.type}</span>
+                <div style="display:flex; gap:5px; align-items:center;">
+                    ${l.version ? `<span class="badge" style="font-size:0.6rem; padding:2px 6px; background:rgba(255,255,255,0.1);">v${l.version}</span>` : ''}
+                    <span class="log-type">${l.type}</span>
+                </div>
             </div>
             <div class="log-msg" title="${l.message || ''}">
                 ${l.success ? '✅ Sincronismo OK (' + l.repo + ')' : '❌ Falha: ' + (l.message || 'Erro')}

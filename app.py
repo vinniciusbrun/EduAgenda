@@ -1750,7 +1750,8 @@ def sync_update_endpoint():
                 "repo": repo_url.split('/')[-1] if repo_url else "N/A",
                 "success": success,
                 "message": message,
-                "type": "PUSH" if force else "SYNC"
+                "type": "PUSH" if force else "SYNC",
+                "version": Updater.get_local_version()['version']
             })
             cfg['project_sync_history'] = history[:15] # Mantém os últimos 15 logs
             return cfg
