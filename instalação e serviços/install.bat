@@ -78,13 +78,23 @@ if exist "%SCRIPT_DIR%app.py" (
 )
 
 echo.
-echo [!] ERRO CRITICO: app.py nao encontrado.
-echo     Procurado em:
-echo     1. %SCRIPT_DIR%..\app.py
-echo     2. %SCRIPT_DIR%app.py
+echo [!] app.py nao encontrado.
+echo [?] Modo Instalacao Limpa Detectado.
+echo     Onde deseja instalar o sistema?
+echo     [1] Neste diretorio: %SCRIPT_DIR%
+echo     [2] No diretorio pai: %SCRIPT_DIR%..
 echo.
-pause
-exit /b
+set /p INST_OPT="Escolha [1/2] (Padrao 1): "
+
+if "%INST_OPT%"=="2" (
+    echo [*] Selecionado: Diretorio Pai
+    pushd "%SCRIPT_DIR%.."
+    goto :found_root
+)
+
+echo [*] Selecionado: Diretorio Atual
+pushd "%SCRIPT_DIR%"
+goto :found_root
 
 :found_root
 set "TARGET_DIR=%CD%"
