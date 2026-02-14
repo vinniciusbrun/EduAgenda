@@ -947,3 +947,42 @@ body.laptop-optimized #managePasswordsModal table td {
     background: rgba(255, 255, 255, 0.1) !important;
     border-radius: 2px !important;
 }
+
+/* 
+   ==========================================================================
+   SETTINGS MODAL ACTIONS (Review)
+   ==========================================================================
+*/
+.settings-actions {
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 15px !important;
+    margin-top: 25px !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.05) !important;
+    padding-top: 20px !important;
+}
+
+.btn-cancel {
+    padding: 12px 20px !important;
+    background: transparent !important;
+    color: #94a3b8 !important;
+    border: 1px solid transparent !important;
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    cursor: pointer !important;
+    transition: all 0.2s !important;
+}
+
+.btn-cancel:hover {
+    color: #fff !important;
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Ensure btn-save behaves well in this context */
+.settings-actions .btn-save {
+    flex: initial !important;
+    /* Override flex: 1.5 from github modal */
+    width: auto !important;
+    min-width: 160px !important;
+}
