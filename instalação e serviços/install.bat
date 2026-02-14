@@ -86,6 +86,12 @@ echo     [2] No diretorio pai: %SCRIPT_DIR%..
 echo.
 set /p INST_OPT="Escolha [1/2] (Padrao 1): "
 
+:: Remove aspas se houver
+set INST_OPT=%INST_OPT:"=%
+
+echo [DEBUG] Opcao escolhida: '%INST_OPT%'
+if "%INST_OPT%"=="" set INST_OPT=1
+
 if "%INST_OPT%"=="2" (
     echo [*] Selecionado: Diretorio Pai
     pushd "%SCRIPT_DIR%.."
