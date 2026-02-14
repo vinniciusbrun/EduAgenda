@@ -1,5 +1,7 @@
 @echo off
-setlocal
+setlocal EnableDelayedExpansion
+:: Define pagina de codigo UTF-8 para lidar com acentos em pastas
+chcp 65001 >nul
 
 echo ==========================================
 echo   EduAgenda - Instalador e Configurador
@@ -8,6 +10,11 @@ echo ==========================================
 :: 1. Bootstrap de Dependencias (Python e Git)
 echo [*] Iniciando auto-instalador de dependencias...
 powershell -ExecutionPolicy Bypass -File "%~dp0bootstrap.ps1"
+if errorlevel 1 (
+    echo [!] Erro no Bootstrap. Verifique saida anterior.
+    pause
+    exit /b
+)
 
 :: Recarregar PATH de forma agressiva (Sistema + Usuario + Caminhos comuns)
 for /f "tokens=*" %%a in ('powershell -command "[System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User')"') do set "PATH=%%a"
@@ -62,26 +69,36 @@ git --version >nul 2>&1
 if errorlevel 1 goto :git_still_missing
 
 :: 4. Detectar o Diretorio Raiz do Projeto
-:: Move o contexto para o diretorio do script para consistencia
-cd /d "%~dp0"
+set "SCRIPT_DIR=%~dp0"
+:: Remove a barra final para estetica, se desejado, mas mantem a logica com barra
+echo.
+echo [i] Diagnosticando caminhos...
+echo     Script: %SCRIPT_DIR%
 
-if exist "app.py" (
-    echo [*] Detectado: Executado da raiz do projeto.
-    set "TARGET_DIR=%CD%"
+if exist "!SCRIPT_DIR!..\app.py" (
+    echo [*] App detectado no diretorio pai.
+    pushd "!SCRIPT_DIR!.."
 ) else (
-    if exist "..\app.py" (
-        echo [*] Detectado: Executado de subpasta. Subindo nivel...
-        cd ..
-        set "TARGET_DIR=%CD%"
+    if exist "!SCRIPT_DIR!app.py" (
+         echo [*] App detectado no mesmo diretorio.
+         pushd "!SCRIPT_DIR!"
     ) else (
-        echo [!] ERRO CRITICO: Nao foi possivel localizar a raiz do projeto (app.py nao encontrado).
-        echo [i] Diretorio atual analisado: %CD%
-        pause
-        exit /b
+         echo.
+         echo [!] ERRO CRITICO: app.py nao encontrado.
+         echo     Procurado em:
+         echo     1. !SCRIPT_DIR!..\app.py
+         echo     2. !SCRIPT_DIR!app.py
+         echo.
+         pause
+         exit /b
     )
 )
 
-echo [*] Raiz do projeto confirmada: %TARGET_DIR%
+set "TARGET_DIR=!CD!"
+echo [*] Raiz definida como: !TARGET_DIR!
+:: Volta o pushd para nao bagunçar a pilha, mas agora sabemos onde ir
+popd
+cd /d "!TARGET_DIR!"
 if "%CD%"=="C:\" (
     echo [!] ERRO: Nao e permitido instalar o sistema na raiz do disco (C:\).
     echo [!] Crie uma pasta (ex: C:\EduAgenda) e coloque o instalador la.
