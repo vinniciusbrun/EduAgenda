@@ -62,27 +62,26 @@ git --version >nul 2>&1
 if errorlevel 1 goto :git_still_missing
 
 :: 4. Detectar o Diretorio Raiz do Projeto
-set "TARGET_DIR=%CD%"
+:: Move o contexto para o diretorio do script para consistencia
+cd /d "%~dp0"
 
-:: Se app.py nao estiver aqui, verifica se esta no diretorio pai
-if not exist "app.py" (
+if exist "app.py" (
+    echo [*] Detectado: Executado da raiz do projeto.
+    set "TARGET_DIR=%CD%"
+) else (
     if exist "..\app.py" (
-        echo [*] Detectado execução de dentro da subpasta. Ajustando para raiz...
-        set "TARGET_DIR=%~dp0.."
-        cd /d "%TARGET_DIR%"
+        echo [*] Detectado: Executado de subpasta. Subindo nivel...
+        cd ..
+        set "TARGET_DIR=%CD%"
     ) else (
-        echo [!] AVISO: app.py nao encontrado no diretorio atual ou superior.
+        echo [!] ERRO CRITICO: Nao foi possivel localizar a raiz do projeto (app.py nao encontrado).
+        echo [i] Diretorio atual analisado: %CD%
+        pause
+        exit /b
     )
 )
 
-:: Confirma se mudou corretamente
-if exist "app.py" (
-    echo [*] Raiz do projeto confirmada: %CD%
-) else (
-    echo [!] ERRO: Nao foi possivel localizar a raiz do projeto.
-    pause
-    exit /b
-)
+echo [*] Raiz do projeto confirmada: %TARGET_DIR%
 if "%CD%"=="C:\" (
     echo [!] ERRO: Nao e permitido instalar o sistema na raiz do disco (C:\).
     echo [!] Crie uma pasta (ex: C:\EduAgenda) e coloque o instalador la.
