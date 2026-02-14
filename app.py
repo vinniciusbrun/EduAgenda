@@ -1487,8 +1487,9 @@ def config_github_route():
         data = {
             "repo": cfg.get('github_repo', ''),
             "user": cfg.get('github_user', ''),
-            "token": cfg.get('github_token', '') if is_root() else '',
-            "project_repos": cfg.get('project_repos', [])
+            "github_token": cfg.get('github_token', '') if is_root() else '',
+            "project_repos": cfg.get('project_repos', []),
+            "sync_history": cfg.get('project_sync_history', [])
         }
         if is_root():
             data["repo_proj"] = cfg.get('github_repo_proj', '')
@@ -1739,6 +1740,26 @@ def sync_update_endpoint():
     force = request.json.get('force', False) if request.is_json else False
     
     success, message = Updater.sync_push(repo_url, token, force=force)
+    
+    # Registrar no histórico de sincronização
+    try:
+        def log_sync_event(cfg):
+            history = cfg.get('project_sync_history', [])
+            history.insert(0, {
+                "timestamp": datetime.now().strftime("%d/%m/%Y %H:%M"),
+                "repo": repo_url.split('/')[-1] if repo_url else "N/A",
+                "success": success,
+                "message": message,
+                "type": "PUSH" if force else "SYNC"
+            })
+            cfg['project_sync_history'] = history[:15] # Mantém os últimos 15 logs
+            return cfg
+        
+        from core.models import update_config
+        update_config(log_sync_event)
+    except Exception as e:
+        print(f"Erro ao logar sincronismo: {e}")
+
     return jsonify({"success": success, "message": message})
 
 @app.route('/api/update/install', methods=['POST'])

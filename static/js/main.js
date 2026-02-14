@@ -973,8 +973,11 @@ function openGithubModal(type) {
                     if (data.token_proj) document.getElementById('ghTokenProj').value = data.token_proj;
                     if (data.obs_proj) document.getElementById('ghRepoObsProj').value = data.obs_proj;
 
-                    // Renderiza Histórico
+                    // Renderiza Histórico de Ambientes
                     renderGithubHistory(data.project_repos || []);
+
+                    // Renderiza Log de Atividade
+                    renderSyncHistory(data.sync_history || []);
 
                     // Mostra botão de sincronização se houver repo configurado
                     const btnSync = document.getElementById('btnSyncProject');
@@ -1407,6 +1410,8 @@ async function syncProject(force = false) {
         if (data.success) {
             showToast('Sincronização concluída!', 'success');
             alert("Sucesso:\n" + data.message);
+            // Atualiza logs imediatamente
+            openGithubModal('project');
         } else if (data.message === "REJECTED_HISTORY") {
             // Caso especial: Histórico divergiu ou troca de repo
             if (confirm("O histórico do repositório mudou ou divergiu (comum ao trocar de repositório).\n\nDeseja FORÇAR o envio dos arquivos locais? (Isso sobrescreverá o remoto)")) {
@@ -1506,4 +1511,26 @@ async function testGithubConnection(type) {
             btn.innerText = oldText;
         }
     }
+}
+
+function renderSyncHistory(logs) {
+    const list = document.getElementById('ghSyncHistoryList');
+    if (!list) return;
+
+    if (!logs || logs.length === 0) {
+        list.innerHTML = '<div style="text-align: center; color: #64748b; font-size: 0.7rem; margin-top: 20px;">Nenhum registro de atividade</div>';
+        return;
+    }
+
+    list.innerHTML = logs.map(l => `
+        <div class="sync-log-item ${l.success ? 'success' : 'error'}">
+            <div class="log-header">
+                <span class="log-time">${l.timestamp}</span>
+                <span class="log-type">${l.type}</span>
+            </div>
+            <div class="log-msg" title="${l.message || ''}">
+                ${l.success ? '✅ Sincronismo OK (' + l.repo + ')' : '❌ Falha: ' + (l.message || 'Erro')}
+            </div>
+        </div>
+    `).join('');
 }
