@@ -1569,6 +1569,9 @@ def config_github_route():
                 results.append(f"Backup: {'OK' if res.returncode == 0 else 'Falha'}")
         
         # Testa Projeto se houver dados
+        if repo_proj: 
+            tk = token_proj if token_proj else cfg.get('github_token_proj')
+            
             # Tenta extrair user da URL se não fornecido
             user_p = user_proj if user_proj else cfg.get('github_user_proj')
             if not user_p and repo_proj and "github.com" in repo_proj:
