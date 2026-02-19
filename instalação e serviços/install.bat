@@ -28,18 +28,23 @@ if not exist "%TARGET%" (
 
 cd /d "%TARGET%"
 
-:: 3. Clone do Repositório
-echo [*] Clonando repositorio do EduAgenda...
-if exist ".git" (
+:: 3. Clone ou Atualizacao
+echo [*] Sincronizando repositorio do EduAgenda...
+if not exist ".git" (
+    git clone https://github.com/vinniciusbrun/EduAgenda.git .
+) else (
     echo [i] Repositorio ja existe. Atualizando...
     git fetch --all
-    git reset --hard origin/master || git reset --hard origin/main
-) else (
-    git clone https://github.com/vinniciusbrun/EduAgenda.git .
+    git reset --hard origin/master
 )
 
 if errorlevel 1 (
-    echo [!] Erro ao clonar/atualizar o repositorio.
+    echo [i] Tentando branch alternativa 'main'...
+    git reset --hard origin/main
+)
+
+if errorlevel 1 (
+    echo [!] Erro ao sincronizar o repositorio.
     pause
     exit /b
 )
