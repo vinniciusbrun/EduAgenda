@@ -976,7 +976,9 @@ function openGithubModal(type) {
                 if (data.token) document.getElementById('ghToken').value = data.token;
 
                 if (isProject) {
-                    if (data.repo_proj) document.getElementById('ghRepoUrlProj').value = data.repo_proj;
+                    if (data.repo_proj) {
+                        document.getElementById('ghRepoUrlProj').value = data.repo_proj;
+                    }
                     if (data.token_proj) document.getElementById('ghTokenProj').value = data.token_proj;
                     if (data.obs_proj) document.getElementById('ghRepoObsProj').value = data.obs_proj;
 
@@ -988,7 +990,13 @@ function openGithubModal(type) {
 
                     // Mostra botão de sincronização se houver repo configurado
                     const btnSync = document.getElementById('btnSyncProject');
-                    if (btnSync) btnSync.style.display = data.repo_proj ? 'block' : 'none';
+                    if (btnSync && data.repo_proj) btnSync.style.display = 'block';
+
+                    // Atualiza o link de token para o projeto
+                    updateGithubTokenLink('project');
+                } else {
+                    // Atualiza o link de token para o backup
+                    updateGithubTokenLink('backup');
                 }
             })
             .catch(err => console.error("Erro ao buscar configurações: ", err));

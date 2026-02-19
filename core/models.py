@@ -55,11 +55,25 @@ class DataManager:
         path = DataManager._get_path(filename)
         temp_path = f"{path}.tmp"
         
+        # Se o arquivo não existir, o estado inicial depende do nome/tipo
+        # mas por segurança, começaremos com o que callback precisar.
+        # Se carregar falhar por falta de arquivo, passaremos None ou empty adequado.
+        
         if not os.path.exists(path):
-            with open(path, 'w', encoding='utf-8') as f:
-                json.dump([], f)
+            data = {} if filename == 'config.json' else []
+        else:
+            with open(path, 'r', encoding='utf-8') as f:
+                try:
+                    data = json.load(f)
+                except:
+                    data = {} if filename == 'config.json' else []
         
         # Lock de leitura/escrita
+        # (Nota: O arquivo PRECISA existir para o portalocker funcionar no modo 'r')
+        if not os.path.exists(path):
+            with open(path, 'w', encoding='utf-8') as f:
+                json.dump(data, f)
+
         f = open(path, 'r', encoding='utf-8')
         portalocker.lock(f, portalocker.LOCK_EX)
         try:
