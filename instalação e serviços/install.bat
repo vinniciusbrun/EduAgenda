@@ -32,7 +32,8 @@ cd /d "%TARGET%"
 echo [*] Clonando repositorio do EduAgenda...
 if exist ".git" (
     echo [i] Repositorio ja existe. Atualizando...
-    git pull origin master || git pull origin main
+    git fetch --all
+    git reset --hard origin/master || git reset --hard origin/main
 ) else (
     git clone https://github.com/vinniciusbrun/EduAgenda.git .
 )
