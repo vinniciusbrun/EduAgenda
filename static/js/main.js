@@ -163,6 +163,13 @@ async function handleLogin(e) {
         closeModal('loginModal');
         window.currentUser = result.user;
         window.currentRole = result.role;
+
+        // Se for Root ou Admin, recarrega a página para processar blocos server-side (Jinja2)
+        if (result.role === 'root' || result.role === 'admin') {
+            location.reload();
+            return;
+        }
+
         updateUserUI(result.nome);
         await loadConfig();
         loadSchedule();
