@@ -8,7 +8,7 @@ const DashboardAdmin = {
         console.log("[BI] Inicializando...");
         // Removido timeout rígido de 6s para evitar travamento em redes lentas
         const checkRole = setInterval(() => {
-            if (window.currentRole === 'admin') {
+            if (window.currentRole === 'admin' || window.currentRole === 'root') {
                 clearInterval(checkRole);
                 this.setup();
             }

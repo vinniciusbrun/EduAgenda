@@ -979,6 +979,7 @@ function openGithubModal(type) {
                     if (data.repo_proj) {
                         document.getElementById('ghRepoUrlProj').value = data.repo_proj;
                     }
+                    if (data.user_proj) document.getElementById('ghUserProj').value = data.user_proj;
                     if (data.token_proj) document.getElementById('ghTokenProj').value = data.token_proj;
                     if (data.obs_proj) document.getElementById('ghRepoObsProj').value = data.obs_proj;
 
@@ -1394,6 +1395,7 @@ async function saveGithubConfig(type) {
 
     if (isProject) {
         payload.repo_proj = document.getElementById('ghRepoUrlProj')?.value;
+        payload.user_proj = document.getElementById('ghUserProj')?.value;
         payload.token_proj = document.getElementById('ghTokenProj')?.value;
         payload.obs_proj = document.getElementById('ghRepoObsProj')?.value;
     } else {
@@ -1436,6 +1438,7 @@ async function testGithubConnection(type) {
     const payload = { action: 'test' };
     if (isProj) {
         payload.repo_proj = document.getElementById('ghRepoUrlProj')?.value;
+        payload.user_proj = document.getElementById('ghUserProj')?.value;
         payload.token_proj = document.getElementById('ghTokenProj')?.value;
     } else {
         payload.repo = document.getElementById('ghRepoUrl')?.value;

@@ -1536,6 +1536,7 @@ def config_github_route():
         }
         if is_root():
             data["repo_proj"] = cfg.get('github_repo_proj', '')
+            data["user_proj"] = cfg.get('github_user_proj', '')
             data["token_proj"] = cfg.get('github_token_proj', '')
             data["obs_proj"] = cfg.get('github_obs_proj', '')
         return jsonify(data)
@@ -1550,6 +1551,7 @@ def config_github_route():
     
     # Repositório de Projeto
     repo_proj = data.get('repo_proj')
+    user_proj = data.get('user_proj')
     token_proj = data.get('token_proj')
     obs_proj = data.get('obs_proj', '')
 
@@ -1567,12 +1569,9 @@ def config_github_route():
                 results.append(f"Backup: {'OK' if res.returncode == 0 else 'Falha'}")
         
         # Testa Projeto se houver dados
-        if repo_proj: 
-            tk = token_proj if token_proj else cfg.get('github_token_proj')
-            
-            # Tenta extrair user da URL se não fornecido (para projects)
-            user_p = user_backup
-            if not user_p and "github.com" in repo_proj:
+            # Tenta extrair user da URL se não fornecido
+            user_p = user_proj if user_proj else cfg.get('github_user_proj')
+            if not user_p and repo_proj and "github.com" in repo_proj:
                 try:
                     parts = repo_proj.split("github.com/")[1].split("/")
                     user_p = parts[0]
@@ -1594,6 +1593,7 @@ def config_github_route():
             
             if repo_proj:
                 cfg['github_repo_proj'] = repo_proj
+                cfg['github_user_proj'] = user_p # Usa o user resolvido ou fornecido
                 cfg['github_token_proj'] = token_proj
                 cfg['github_obs_proj'] = obs_proj
                 
@@ -1765,9 +1765,12 @@ def check_update_endpoint():
         return jsonify({"success": False, "message": "Acesso restrito ao Desenvolvedor (Root)."}), 403
     
     config = get_config()
-    repo_url = config.get('github_repo_proj') or config.get('github_repo')
-    token = config.get('github_token_proj') or config.get('github_token')
+    repo_url = config.get('github_repo_proj')
+    token = config.get('github_token_proj')
     
+    if not repo_url or not token:
+        return jsonify({"success": False, "message": "Repositório de Projeto não configurado."})
+
     remote = Updater.check_remote_version(repo_url, token)
     if not remote:
         return jsonify({"success": False, "message": "Não foi possível verificar a versão remota (Verifique Token/Repo)."})
@@ -1790,10 +1793,13 @@ def sync_update_endpoint():
         return jsonify({"success": False, "message": "Acesso restrito ao Desenvolvedor (Root)."}), 403
         
     config = get_config()
-    repo_url = config.get('github_repo_proj') or config.get('github_repo')
-    token = config.get('github_token_proj') or config.get('github_token')
+    repo_url = config.get('github_repo_proj')
+    token = config.get('github_token_proj')
     
-    # Verifica se deve forçar o push (ex: troca de repositório)
+    if not repo_url or not token:
+        return jsonify({"success": False, "message": "Repositório de Projeto não configurado."})
+
+    # Verifica se deve forçar o push
     force = request.json.get('force', False) if request.is_json else False
     
     success, message = Updater.sync_push(repo_url, token, force=force)
