@@ -792,7 +792,8 @@ body.laptop-optimized #githubBackupModal .modal-body {
     /* ~45% - Foco Principal */
     display: flex !important;
     flex-direction: column !important;
-    padding: 10px 15px !important;
+    padding: 10px 15px 25px 15px !important;
+    /* v8.30: Adicionado padding bottom para clearance */
     justify-content: flex-start !important;
     /* Ajustado de center para permitir scroll se necessário */
     overflow-y: auto !important;

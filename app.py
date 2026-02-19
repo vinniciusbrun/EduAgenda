@@ -1557,6 +1557,14 @@ def config_github_route():
 
     cfg = get_config()
 
+    # Resolver usuário do projeto (user_p) para uso em Teste e Salvamento
+    user_p = user_proj if user_proj else cfg.get('github_user_proj')
+    if not user_p and repo_proj and "github.com" in repo_proj:
+        try:
+            parts = repo_proj.split("github.com/")[1].split("/")
+            user_p = parts[0]
+        except: pass
+
     if action == 'test':
         results = []
         # Testa Backup se houver dados
@@ -1572,14 +1580,6 @@ def config_github_route():
         if repo_proj: 
             tk = token_proj if token_proj else cfg.get('github_token_proj')
             
-            # Tenta extrair user da URL se não fornecido
-            user_p = user_proj if user_proj else cfg.get('github_user_proj')
-            if not user_p and repo_proj and "github.com" in repo_proj:
-                try:
-                    parts = repo_proj.split("github.com/")[1].split("/")
-                    user_p = parts[0]
-                except: pass
-
             if tk and user_p:
                 clean = repo_proj.replace("https://", "").replace("http://", "")
                 url = f"https://{user_p}:{tk}@{clean}"
