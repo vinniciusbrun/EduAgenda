@@ -383,7 +383,8 @@ body.laptop-optimized #githubProjectModal .modal {
     flex-direction: column !important;
     overflow: hidden !important;
     border-radius: 16px !important;
-    padding: 1.5rem 2rem !important;
+    padding: 1rem 2rem !important;
+    /* Reduzido de 1.5rem */
     box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.8) !important;
 }
 
@@ -753,6 +754,12 @@ body.laptop-optimized #managePasswordsModal table td {
     font-size: 0.85rem !important;
 }
 
+body.laptop-optimized #githubBackupModal .modal-body {
+    flex: 1 !important;
+    overflow-y: auto !important;
+    padding-right: 10px !important;
+}
+
 /* 
    ==========================================================================
    DASHBOARD MODAL STYLES (PREMIUM UI)
@@ -762,8 +769,10 @@ body.laptop-optimized #managePasswordsModal table td {
 .github-dashboard-layout {
     display: flex !important;
     gap: 20px !important;
-    height: 500px !important;
-    /* Altura fixa para layout consistente */
+    flex: 1 !important;
+    /* v8.29: Flexível em vez de altura fixa */
+    min-height: 400px !important;
+    /* Altura removida para evitar clipping em 585px */
 }
 
 /* Colunas */
@@ -784,7 +793,10 @@ body.laptop-optimized #managePasswordsModal table td {
     display: flex !important;
     flex-direction: column !important;
     padding: 10px 15px !important;
-    justify-content: center !important;
+    justify-content: flex-start !important;
+    /* Ajustado de center para permitir scroll se necessário */
+    overflow-y: auto !important;
+    /* v8.28: Adicionado scroll para evitar clipping */
 }
 
 .github-column-logs {
