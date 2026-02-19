@@ -1755,12 +1755,6 @@ def admin_reset_password():
         
     return jsonify({"success": True, "message": f"Senha de {target_username} resetada para o padrão (@Senha123456)."})
 
-    result = update_usuarios(update_logic)
-    if result is None:
-        return jsonify({"success": False, "message": "Usuário não encontrado"}), 404
-        
-    return jsonify({"success": True, "message": f"Senha de {username} resetada para o padrão."})
-
 @app.route('/api/version')
 def get_version():
     return jsonify(Updater.get_local_version())

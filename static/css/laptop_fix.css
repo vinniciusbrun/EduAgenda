@@ -365,9 +365,11 @@ body.laptop-optimized .modal.dashboard-modal {
 body.laptop-optimized #githubBackupModal .modal,
 body.laptop-optimized #githubProjectModal .modal {
     position: fixed !important;
-    top: 50px !important;
+    top: 50% !important;
     left: 50% !important;
-    transform: translateX(-50%) zoom(0.8) !important;
+    bottom: auto !important;
+    right: auto !important;
+    transform: translate(-50%, -50%) scale(0.8) !important;
     width: 1200px !important;
     height: auto !important;
     max-width: 95vw !important;

@@ -1212,85 +1212,6 @@ async function syncPush() {
     }
 }
 
-async function checkUpdates() {
-    const btn = event.currentTarget;
-    const mac = btn.innerText;
-    btn.disabled = true;
-    btn.innerText = 'Verificando...';
-
-    try {
-        const res = await fetch('/api/update/check');
-        const data = await res.json();
-
-        const btnInstall = document.getElementById('btnInstallUpdate');
-
-        if (data.success) {
-            if (data.has_update) {
-                showToast(`Nova versão disponível: v${data.remote_version}`, 'info');
-                if (btnInstall) {
-                    btnInstall.disabled = false;
-                    btnInstall.innerText = `Instalar v${data.remote_version}`;
-                    btnInstall.style.opacity = '1';
-                    btnInstall.style.cursor = 'pointer';
-                }
-            } else {
-                showToast('Seu sistema já está na versão mais recente.', 'success');
-                if (btnInstall) {
-                    btnInstall.disabled = true;
-                    btnInstall.innerText = 'v' + data.local_version + ' (Atualizada)';
-                    btnInstall.style.opacity = '0.5';
-                    btnInstall.style.cursor = 'not-allowed';
-                }
-            }
-        } else {
-            showToast(data.message, 'error');
-        }
-    } catch (e) {
-        showToast('Erro ao verificar atualizações: ' + e, 'error');
-    } finally {
-        btn.disabled = false;
-        btn.innerText = mac;
-    }
-}
-
-async function installUpdate() {
-    if (!confirm("ATENÇÃO: A instalação irá substituir os arquivos do sistema e reiniciar o servidor. Seus dados na pasta 'data' serão preservados. Deseja iniciar?")) return;
-
-    const btn = document.getElementById('btnInstallUpdate');
-    const container = document.getElementById('updateProgressContainer');
-    const bar = document.getElementById('updateProgressBar');
-
-    if (btn) btn.disabled = true;
-    if (container) container.style.display = 'block';
-
-    let progress = 0;
-    const interval = setInterval(() => {
-        progress += 5;
-        if (bar) bar.style.width = progress + '%';
-        if (progress >= 95) clearInterval(interval);
-    }, 200);
-
-    try {
-        const res = await fetch('/api/update/install', { method: 'POST' });
-        const data = await res.json();
-
-        if (data.success) {
-            if (bar) bar.style.width = '100%';
-            showToast('Arquivos baixados! Reiniciando servidor...', 'success');
-            setTimeout(() => {
-                window.location.reload();
-            }, 3000);
-        } else {
-            showToast(data.message, 'error');
-            if (container) container.style.display = 'none';
-            if (btn) btn.disabled = false;
-        }
-    } catch (e) {
-        showToast('Erro na instalação: ' + e, 'error');
-        if (container) container.style.display = 'none';
-        if (btn) btn.disabled = false;
-    }
-}
 
 // Função para atualizar o link de geração de token dinamicamente
 function updateGithubTokenLink(type) {
@@ -1343,18 +1264,25 @@ async function checkUpdates() {
         const res = await fetch('/api/update/check');
         const data = await res.json();
 
+        const btnInstall = document.getElementById('btnInstallUpdate');
+
         if (data.success) {
             if (data.has_update) {
-                showToast(`Nova versão disponível: ${data.remote_version}`, 'info');
-                const btnInstall = document.getElementById('btnInstallUpdate');
+                showToast(`Nova versão disponível: v${data.remote_version}`, 'info');
                 if (btnInstall) {
-                    btnInstall.innerText = `Instalar ${data.remote_version}`;
+                    btnInstall.innerText = `Instalar v${data.remote_version}`;
                     btnInstall.disabled = false;
                     btnInstall.style.opacity = '1';
                     btnInstall.style.cursor = 'pointer';
                 }
             } else {
-                showToast('O sistema já está atualizado.', 'success');
+                showToast('Seu sistema já está na versão mais recente.', 'success');
+                if (btnInstall) {
+                    btnInstall.disabled = true;
+                    btnInstall.innerText = 'v' + data.local_version + ' (Atualizada)';
+                    btnInstall.style.opacity = '0.5';
+                    btnInstall.style.cursor = 'not-allowed';
+                }
             }
         } else {
             showToast(data.message || 'Erro ao verificar atualizações.', 'error');
@@ -1374,17 +1302,24 @@ async function installUpdate() {
     if (!confirm('O servidor será reiniciado após a atualização. Continuar?')) return;
 
     const btn = document.getElementById('btnInstallUpdate');
+    const progressContainer = document.getElementById('updateProgressContainer');
+    const progressBar = document.getElementById('updateProgressBar');
+
     if (btn) {
         btn.disabled = true;
         btn.innerText = "Instalando...";
     }
+
+    if (progressContainer) progressContainer.style.display = 'block';
+    if (progressBar) progressBar.style.width = '30%';
 
     try {
         const res = await fetch('/api/update/install', { method: 'POST' });
         const data = await res.json();
 
         if (data.success) {
-            showToast('Atualização instalada! Reiniciando...', 'success');
+            if (progressBar) progressBar.style.width = '100%';
+            showToast('Atualização instalada! Reiniciando em 5 segundos...', 'success');
             setTimeout(() => location.reload(), 5000);
         } else {
             showToast(data.message || 'Falha na instalação.', 'error');
@@ -1392,10 +1327,12 @@ async function installUpdate() {
                 btn.disabled = false;
                 btn.innerText = "Tentar Novamente";
             }
+            if (progressContainer) progressContainer.style.display = 'none';
         }
     } catch (e) {
         showToast('Erro na requisição de instalação.', 'error');
         if (btn) btn.disabled = false;
+        if (progressContainer) progressContainer.style.display = 'none';
     }
 }
 
