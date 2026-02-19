@@ -85,15 +85,19 @@ pause
 exit /b
 
 :pip_ok
+:: 6. Inicializacao do Banco de Dados (Root/Admin)
+echo [*] Inicializando usuarios administrativos...
+python init_db.py
+
 echo.
 echo ==========================================
 echo   Instalacao Concluida! Iniciando App...
 echo ==========================================
 echo.
 
-:: 6. Iniciar Servidor
+:: 7. Iniciar Servidor
 start python app.py
 
-echo [OK] Servidor iniciado. Matenha essa janela aberta para que o servidor continue funcionando.
+echo [OK] Servidor iniciado. Mantenha essa janela aberta para que o servidor continue funcionando.
 timeout /t 5
 exit

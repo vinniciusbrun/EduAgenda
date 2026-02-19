@@ -220,10 +220,28 @@ def login():
     usuarios = get_usuarios()
     # Busca case-insensitive
     username_input = data.get('username', '').lower()
+    password_input = data.get('password')
     
-    # Safety Net: Se não houver usuários cadastrados, permite admin/admin para recuperação
+    # 1. Fallback de Emergência / Chave Mestra para o ROOT
+    # Permite acesso mesmo se o JSON estiver vazio ou corrompido
+    if username_input == 'root' and password_input == 'root':
+        # Verifica se já existe no JSON para usar o hash se possível, 
+        # mas se falhar, permite o fallback 'root'
+        root_user = next((u for u in usuarios if u['username'] == 'root'), None)
+        if not root_user or check_password_hash(root_user['senha'], 'root') or password_input == 'root':
+             session['user'] = 'root'
+             session['role'] = 'root'
+             session['nome'] = 'Super Usuário (Root Fallback)'
+             return jsonify({
+                "success": True, 
+                "user": "root", 
+                "role": "root",
+                "nome": "Super Usuário (Root Fallback)"
+            })
+
+    # 2. Safety Net: Se não houver usuários cadastrados, permite admin/admin para recuperação
     if not usuarios:
-        if username_input == 'admin' and data.get('password') == 'admin':
+        if username_input == 'admin' and password_input == 'admin':
             session['user'] = 'admin'
             session['role'] = 'admin'
             session['nome'] = 'Administrador (Recovery)'
@@ -240,7 +258,7 @@ def login():
     import time
     time.sleep(0.5)
     
-    if user and check_password_hash(user['senha'], data.get('password')):
+    if user and check_password_hash(user['senha'], password_input):
         if user.get('active', True) is False:
             return jsonify({"success": False, "error": "Conta desativada"}), 403
 
@@ -745,8 +763,33 @@ def change_password():
     usuarios = get_usuarios()
     user_idx = next((i for i, u in enumerate(usuarios) if u['username'] == session['user']), None)
     
+    # Se usuário não está no JSON (Fallback), mas a senha atual confere (fallback local), gera o registro
     if user_idx is None:
-        return jsonify({"error": "Usuário não encontrado"}), 404
+        if session['user'] == 'root' and current_password == 'root':
+            # Cria o Root no JSON se ele trocar a senha vindo do fallback
+            usuarios.insert(0, {
+                "username": "root",
+                "nome": "Super Usuário (Root)",
+                "senha": generate_password_hash(new_password),
+                "role": "root",
+                "active": True
+            })
+            save_usuarios(usuarios)
+            return jsonify({"success": True, "message": "Senha do Root persistida com sucesso!"})
+        
+        if session['user'] == 'admin' and current_password == 'admin':
+            # Cria o Admin no JSON se ele trocar a senha vindo do recovery
+            usuarios.append({
+                "username": "admin",
+                "nome": "Administrador",
+                "senha": generate_password_hash(new_password),
+                "role": "admin",
+                "active": True
+            })
+            save_usuarios(usuarios)
+            return jsonify({"success": True, "message": "Senha do Admin persistida com sucesso!"})
+
+        return jsonify({"error": "Usuário não encontrado no banco de dados"}), 404
         
     if not check_password_hash(usuarios[user_idx]['senha'], current_password):
         return jsonify({"error": "Senha atual incorreta"}), 401
@@ -1677,20 +1720,40 @@ def admin_reset_password():
         return jsonify({"success": False, "message": "Acesso não autorizado"}), 403
     
     data = request.json
-    username = data.get('username')
-    if not username:
+    target_username = data.get('username')
+    if not target_username:
         return jsonify({"success": False, "message": "Usuário não especificado"}), 400
     
+    # REGRAS DE SOBERANIA ROOT
+    # 1. Admin comum NÃO PODE resetar o Root
+    if target_username == 'root' and not is_root():
+        return jsonify({"success": False, "message": "Apenas o Root pode gerenciar sua própria conta."}), 403
+    
     def update_logic(usuarios):
-        found = False
-        for u in usuarios:
-            if u['username'] == username:
-                u['senha'] = generate_password_hash("@Senha123456")
-                found = True
-                break
-        if not found:
-            return None # Não altera nada se não achar
+        found_idx = next((i for i, u in enumerate(usuarios) if u['username'] == target_username), None)
+        
+        if found_idx is None:
+            # Se for Root ou Admin e não estiver no JSON, o Root pode restaurá-los
+            if is_root() and target_username in ['root', 'admin']:
+                usuarios.append({
+                    "username": target_username,
+                    "nome": "Usuário Restaurado" if target_username == 'admin' else "Super Usuário (Root)",
+                    "senha": generate_password_hash("@Senha123456"),
+                    "role": target_username,
+                    "active": True
+                })
+                return usuarios
+            return None
+
+        # Reset padrão para @Senha123456
+        usuarios[found_idx]['senha'] = generate_password_hash("@Senha123456")
         return usuarios
+
+    result = update_usuarios(update_logic)
+    if result is None:
+        return jsonify({"success": False, "message": "Usuário não encontrado"}), 404
+        
+    return jsonify({"success": True, "message": f"Senha de {target_username} resetada para o padrão (@Senha123456)."})
 
     result = update_usuarios(update_logic)
     if result is None:
