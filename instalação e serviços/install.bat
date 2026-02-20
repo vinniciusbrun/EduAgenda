@@ -51,7 +51,13 @@ if not exist "%INIT_V_PATH%" mkdir "%INIT_V_PATH%"
 :: Se estivermos rodando de dentro de um repo, copiamos em vez de clonar se for a mesma versao
 if exist "%~dp0..\app.py" (
     echo [*] Copiando arquivos locais para a pasta da versao...
-    xcopy /s /e /y /i "%~dp0..\\*" "%INIT_V_PATH%\\"
+    robocopy "%~dp0.." "%INIT_V_PATH%" /E /XD versions shared manager venv .git /XF .env manager.log >nul
+    :: Robocopy retorna exit codes < 8 para sucessos (1 = arquivos copiados, etc)
+    if %ERRORLEVEL% GEQ 8 (
+        echo [!] Erro critico ao copiar arquivos.
+        pause
+        exit /b
+    )
 ) else (
     echo [*] Clonando versao do GitHub...
     cd /d "%INIT_V_PATH%"

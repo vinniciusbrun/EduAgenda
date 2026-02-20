@@ -199,7 +199,7 @@ class Updater:
 
             # 2. Download ZIP
             owner_repo = repo_url.replace("https://github.com/", "").replace(".git", "")
-            zip_url = f"https://api.github.com/repos/{owner_repo}/zipball/main"
+            zip_url = f"https://api.github.com/repos/{owner_repo}/zipball/master"
             
             headers = {}
             if token: headers['Authorization'] = f'token {token}'

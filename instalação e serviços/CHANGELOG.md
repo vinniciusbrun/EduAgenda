@@ -1,5 +1,11 @@
 # Changelog - EduAgenda Installer & Services
 
+## [1.1.0] - 2026-02-20
+
+### Corrigido e Otimizado
+- **Prevenção de Infinite Loop (Crash Fatal do Windows)**: O script de instalação original realizava uma cópia da raiz de desenvolvimento (`%~dp0..\*`) injetando silenciosamente o conteúdo inteiro, iterativamente, para dentro de sua própria ramificação `versions\v1.3.13`. Quando os usuários extraíam o pacote sobre a pasta `C:\EduAgenda` e rodavam ali dentro, o `xcopy` ficava em um loop recursivo infinito espelhando pastas como `versions` dentro de `versions`, o que causava congelamento da máquina, memory leak e estouro de estocagem HD. Substituído por `robocopy` parametrizado robusto nativo do OS com flags `/XD` exclusivas de bloqueio, banindo esse colapso por inteiro! 
+- **Sincronia de Hot-Swaps Oculta**: Ajustada ramificação estrita do Watchdog Orquestrador (`core/updater.py`) para puxar estritamente o código do endpoint `master` das APIs do GitHub em vez da `main`, sanando falhas de divergências de sincronização que anulavam updates de background automáticos do cliente final.
+
 ## [1.0.2] - 2026-02-20
 
 ### Corrigido
