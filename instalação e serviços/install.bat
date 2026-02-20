@@ -7,8 +7,8 @@ echo   Arquitetura: Software com Vida
 echo ==========================================
 
 :: 1. Detecção de Versão Dinâmica
-if exist "..\\version.json" (
-    for /f "tokens=2 delims=:," %%a in ('findstr "version" ..\\version.json') do (
+if exist "%~dp0..\version.json" (
+    for /f "tokens=2 delims=:," %%a in ('findstr "version" "%~dp0..\version.json"') do (
         set "V_TAG=%%a"
         set "V_TAG=!V_TAG:"=!"
         set "V_TAG=!V_TAG: =!"
@@ -58,9 +58,9 @@ echo [*] Instalando/Atualizando Versao %V_TAG%...
 if not exist "%INIT_V_PATH%" mkdir "%INIT_V_PATH%"
 
 :: Se estivermos rodando de dentro de um repo, copiamos em vez de clonar se for a mesma versao
-if exist "..\\app.py" (
+if exist "%~dp0..\app.py" (
     echo [*] Copiando arquivos locais para a pasta da versao...
-    xcopy /s /e /y /i "..\\*" "%INIT_V_PATH%\\"
+    xcopy /s /e /y /i "%~dp0..\\*" "%INIT_V_PATH%\\"
 ) else (
     echo [*] Clonando versao do GitHub...
     cd /d "%INIT_V_PATH%"
