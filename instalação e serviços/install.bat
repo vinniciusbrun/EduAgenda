@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 setlocal enabledelayedexpansion
 
 echo ==========================================
@@ -28,19 +29,9 @@ if errorlevel 1 goto :bootstrap_fail
 :: Recarregar PATH
 for /f "tokens=*" %%a in ('powershell -command "[System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User')"') do set "PATH=%%a"
 
-:: 3. Definir Estrutura Raiz (Pergunta ao usuario)
-set "DEFAULT_ROOT=C:\EduAgenda"
-echo.
-echo Onde deseja instalar o EduAgenda?
-echo [1] Padrao (%DEFAULT_ROOT%)
-echo [2] Pasta Atual (%CD%\..)
-set /p "CHOICE=Opcao (1/2) [1]: "
-
-if "%CHOICE%"=="2" (
-    set "ROOT=%CD%\.."
-) else (
-    set "ROOT=%DEFAULT_ROOT%"
-)
+:: 3. Definir Estrutura Raiz
+set "ROOT=C:\EduAgenda"
+echo [*] Instalando na pasta padrao: %ROOT%
 
 echo [*] Preparando estrutura em: %ROOT%
 

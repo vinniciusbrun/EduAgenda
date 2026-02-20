@@ -1,5 +1,11 @@
 # Changelog - EduAgenda Installer & Services
 
+## [1.0.1] - 2026-02-20
+
+### Corrigido e Melhorado
+- **Encoding de Caracteres Especiais**: O script do instalador agora força nativamente a página de códigos UTF-8 (`chcp 65001`) no prompt de comando do Windows. Isso corrige um bug crítico onde a instalação abortava no final com o erro "O sistema não encontrou o arquivo" ao tentar abrir a pasta "instalação e serviços" em SOs de linguagens diferentes.
+- **Root Padronizado**: O prompt iterativo foi removido. Agora a instalação obrigatoriamente força a raiz como `C:\EduAgenda`, padronizando o ambiente e reduzindo atrito para o usuário.
+
 ## [1.0.0] - 2026-02-20
 
 ### Criado
