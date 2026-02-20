@@ -1,5 +1,11 @@
 # Changelog - EduAgenda Installer & Services
 
+## [1.0.2] - 2026-02-20
+
+### Corrigido
+- **Crash Silencioso no Auto-Start**: Resolvido o defeito onde o sistema recém-instalado "desligava" instantaneamente. O arquivo `1 - Iniciar Sistema (Oculto).vbs` estava bypassando o orquestrador e chamando o `app.py` diretamente, o que o deixava "cego" em relação ao caminho do banco de dados compartilhado. Agora o VBS invoca corretamente o script raiz `run_eduagenda.bat` em modo stealth.
+- **Remoção de Hardcode no Runner**: O arquivo central `run_eduagenda.bat` foi atualizado. Ele não exige mais a presença chumbada da versão `v1.2.0` para buscar o interpretador Python inicial. O código agora varre dinamicamente a pasta `versions` em busca do primeiro ambiente virtual funcional.
+
 ## [1.0.1] - 2026-02-20
 
 ### Corrigido e Melhorado

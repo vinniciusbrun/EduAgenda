@@ -1,4 +1,7 @@
 Set WshShell = CreateObject("WScript.Shell")
-' Executa o servidor usando o pythonw do venv (sem janela de terminal)
-' O parâmetro 0 oculta a janela
-WshShell.Run "..\venv\Scripts\pythonw.exe ..\app.py", 0, False
+
+' Ajusta o diretório de trabalho para a Raiz do Software (subindo 3 níveis: pasta atual -> id da versão -> versions)
+WshShell.CurrentDirectory = "..\..\.."
+
+' Executa o orquestrador (manager) invisível via batch intermadiário para carregar o VENV dinâmico
+WshShell.Run "cmd.exe /c run_eduagenda.bat", 0, False

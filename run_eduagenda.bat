@@ -11,11 +11,12 @@ if not exist "manager\manager.py" (
     exit /b
 )
 
-:: Tenta usar o venv da v1.2.0 para rodar o manager ou o python global
-if exist "versions\v1.2.0\venv\Scripts\python.exe" (
-    set PY="versions\v1.2.0\venv\Scripts\python.exe"
-) else (
-    set PY=python
+:: Tenta usar o venv da versao mais recente instalada
+set "PY=python"
+for /d %%V in (versions\v*) do (
+    if exist "%%V\venv\Scripts\python.exe" (
+        set "PY=%%V\venv\Scripts\python.exe"
+    )
 )
 
 %PY% manager\manager.py
