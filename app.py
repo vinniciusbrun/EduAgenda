@@ -1,4 +1,7 @@
 import os
+import json
+from flask import Flask, request, jsonify, render_template, session, send_file, url_for
+
 import shutil
 import subprocess
 from datetime import datetime, timedelta
@@ -40,6 +43,14 @@ HORARIOS_PERIODOS = {
 DIAS_INDEX = {'Segunda': 0, 'Terça': 1, 'Quarta': 2, 'Quinta': 3, 'Sexta': 4}
 
 app = Flask(__name__)
+# Load version information from version.json
+try:
+    with open(os.path.join(os.path.dirname(__file__), 'version.json'), 'r', encoding='utf-8') as f:
+        version_data = json.load(f)
+        app.config['APP_VERSION'] = version_data.get('version', '0.0.0')
+except Exception:
+    app.config['APP_VERSION'] = '0.0.0'
+
 app.secret_key = os.getenv('FLASK_SECRET_KEY', '7d8f9g0h1j2k3l4m5n6o7p8q9r0s1t2u3v4w') # Chave padrão segura se env faltar
 CORS(app)
 
@@ -59,11 +70,16 @@ def migrate_sudo_session():
 
 @app.after_request
 def add_security_headers(response):
+    # Security headers
     response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:;"
     response.headers['X-Content-Type-Options'] = 'nosniff'
     response.headers['X-Frame-Options'] = 'SAMEORIGIN'
     response.headers['X-XSS-Protection'] = '1; mode=block'
+    # Cache control for HTML pages (no cache)
+    if response.content_type.startswith('text/html'):
+        response.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
     return response
+
 
 UPLOAD_FOLDER = 'temp_uploads'
 LOGO_UPLOAD_FOLDER = os.path.join('static', 'uploads')
@@ -72,11 +88,19 @@ for folder in [UPLOAD_FOLDER, LOGO_UPLOAD_FOLDER]:
     if not os.path.exists(folder):
         os.makedirs(folder)
 
+# Expose version to all templates
+@app.context_processor
+def inject_app_version():
+    return {'app_version': app.config.get('APP_VERSION', '0.0.0')}
+
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
 # Configuração simples de autenticação simulada (conforme plano)
 # Em um sistema real, usaríamos sessões/tokens
 def is_admin():
     # Logs para depuração de multissessão
-    role = session.get('role')
+    role = session.get('role', '').lower() # Normaliza para minusculo
     user = session.get('user')
     
     # Migração automática de sessões antigas 'sudo' para 'root'
@@ -84,7 +108,6 @@ def is_admin():
         session['role'] = 'root'
         role = 'root'
         
-    # print(f"[AUTH CHECK] IP: {request.remote_addr} | User: {user} | Role: {role}")
     return role in ['admin', 'root']
 
 def is_root():
@@ -176,15 +199,23 @@ def setup_users():
     return jsonify({"message": f"{len(novos_usuarios)} usuários criados!"})
 
 def sync_professor_users():
-    """Gera/Atualiza usuários baseados na lista atual de professores"""
-    professores = get_professores()
+    """Gera/Atualiza usuários baseados na lista atual de professores usando IDs"""
+    professores = get_professores() # Agora retorna [{"id", "nome"}]
     
     def update_logic(usuarios):
         usernames_existentes = {u['username'] for u in usuarios}
-        nomes_existentes = {u['nome'] for u in usuarios}
+        ids_existentes = {u.get('professor_id') for u in usuarios if u['role'] == 'professor'}
         
-        for prof_nome in professores:
-            if prof_nome in nomes_existentes:
+        for p in professores:
+            prof_id = p['id']
+            prof_nome = p['nome']
+            
+            if prof_id in ids_existentes:
+                # O usuário já existe, mas talvez o nome tenha mudado. 
+                # Vamos atualizar o nome no perfil do usuário para consistência.
+                for u in usuarios:
+                    if u.get('professor_id') == prof_id:
+                        u['nome'] = prof_nome
                 continue
                 
             # Gerar username: primeiro.ultimo
@@ -194,7 +225,6 @@ def sync_professor_users():
             else:
                 username = partes[0].lower()
             
-            # Evitar colisão de usernames se nomes forem muito parecidos
             base_username = username
             counter = 1
             while username in usernames_existentes:
@@ -205,10 +235,10 @@ def sync_professor_users():
                 "username": username,
                 "nome": prof_nome,
                 "senha": generate_password_hash("@Senha123456"),
-                "role": "professor"
+                "role": "professor",
+                "professor_id": prof_id # Vinculo forte pelo UUID
             })
             usernames_existentes.add(username)
-            nomes_existentes.add(prof_nome)
             
         return usuarios
 
@@ -253,6 +283,7 @@ def login():
         session['user'] = user['username']
         session['role'] = user['role']
         session['nome'] = user['nome']
+        session['professor_id'] = user.get('professor_id')
         
         # Registrar log de acesso (com rotação de 1000 registros)
         def add_log(logs):
@@ -269,7 +300,8 @@ def login():
             "success": True, 
             "user": user['username'], 
             "role": user['role'],
-            "nome": user['nome']
+            "nome": user['nome'],
+            "professor_id": user.get('professor_id')
         })
     return jsonify({"success": False, "error": "Credenciais inválidas"}), 401
 
@@ -285,7 +317,8 @@ def get_me():
             "logged": True, 
             "user": session['user'], 
             "role": session['role'],
-            "nome": session['nome']
+            "nome": session['nome'],
+            "professor_id": session.get('professor_id')
         })
     return jsonify({"logged": False})
 
@@ -372,7 +405,7 @@ def list_professores():
     status_map = {u['nome']: u.get('active', True) for u in usuarios}
     
     # Filtra mantendo apenas os ativos (ou quem não tem usuario ainda, assumindo ativo)
-    ativos = [p for p in professores if status_map.get(p, True)]
+    ativos = [p for p in professores if status_map.get(p['nome'], True)]
     return jsonify(ativos)
 
 @app.route('/api/professores/upload', methods=['POST'])
@@ -502,10 +535,12 @@ def create_agendamento():
     
     # Validar Autoridade do Professor
     if not is_admin():
-        # Recuperar nome completo do usuário logado para comparar com professor_id
+        # Recuperar ID do professor logado para comparar com o ID enviado
         usuarios = get_usuarios()
         user_data = next((u for u in usuarios if u['username'] == session.get('user')), None)
-        if not user_data or new_entry.get('professor_id') != user_data['nome']:
+        
+        # Comparação agora feita por ID (robusto a mudanças de nome)
+        if not user_data or new_entry.get('professor_id') != user_data.get('professor_id'):
             return jsonify({"error": "Professores só podem agendar horários para si mesmos"}), 403
             
         # Validar Permissões de Frequência para Professores (apenas diária)
@@ -551,13 +586,16 @@ def create_agendamento():
             user = get_current_user()
             
             # Regras de Proteção de Slot
+            current_prof_id = session.get('professor_id')
+            is_assigned = current_prof_id and existing.get('professor_id') == current_prof_id
+
             if existing.get('locked') and not admin:
                 raise PermissionError("Este slot está travado pelo administrador e não pode ser alterado")
             
-            if not admin and existing.get('criado_por') != user:
+            if not admin and existing.get('criado_por') != user and not is_assigned:
                 raise PermissionError(f"Este horário já está ocupado pela turma {existing['turma_id']} e pertence a outro professor")
 
-            # Se for admin ou o dono (e não estiver travado), remove o antigo para dar lugar ao novo (substituição)
+            # Se for admin, dono ou professor designado, remove o antigo para dar lugar ao novo (substituição)
             agendamentos.pop(existing_idx)
         
         if not new_entry.get('id'):
@@ -570,8 +608,9 @@ def create_agendamento():
         from core.models import update_agendamentos
         update_agendamentos(check_and_append)
         return jsonify({"success": True, "data": new_entry})
-    except ValueError as e:
-        return jsonify({"error": str(e)}), 400
+    except (ValueError, PermissionError) as e:
+        status_code = 403 if isinstance(e, PermissionError) else 400
+        return jsonify({"error": str(e)}), status_code
     except Exception as e:
         return jsonify({"error": f"Erro interno: {str(e)}"}), 500
 
@@ -608,6 +647,7 @@ def lock_agendamento():
 
     try:
         update_agendamentos(do_lock)
+        print(f"🔒 [LOCK SUCCESS] ID: {data.get('id')} por {session.get('user')}")
         return jsonify({"success": True})
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
@@ -636,10 +676,18 @@ def delete_agendamento():
                 is_match = True
             
             if is_match:
+                current_prof_id = session.get('professor_id')
+                is_assigned = current_prof_id and a.get('professor_id') == current_prof_id
+
                 if a.get('locked') and not admin:
+                    print(f"🚫 [DELETE BLOCKED] Slot está travado. User: {user}")
                     raise PermissionError("Este horário está travado pelo administrador")
-                if a.get('criado_por') != user and not admin:
-                    raise PermissionError("Apenas o criador ou admin pode remover este horário")
+                
+                if not admin and a.get('criado_por') != user and not is_assigned:
+                    print(f"🚫 [DELETE DENIED] User: {user} Tentou remover agendamento de: {a.get('criado_por')}")
+                    raise PermissionError("Apenas o ocupante, criador ou admin pode remover este horário")
+                
+                print(f"🗑️ [DELETE SUCCESS] ID: {a.get('id')} por {user}")
                 found = True
                 continue
             new_agendamentos.append(a)
@@ -672,6 +720,9 @@ def export_periodo():
     ed = datetime.strptime(end_date, "%Y-%m-%d")
     
     agendamentos = get_agendamentos()
+    professores_map = {p['professor_id']: p['nome'] for p in get_professores()}
+    turmas_map = {t['id']: t['turma'] for t in get_turmas()}
+    recursos_map = {r['id']: r['nome'] for r in get_recursos()}
     
     def get_ag_date(ag):
         try:
@@ -688,11 +739,11 @@ def export_periodo():
             if not recurso_id or recurso_id == 'all' or a['recurso_id'] == recurso_id:
                 filtrados.append({
                     "Data": dt.strftime("%d/%m/%Y"),
-                    "Recurso": a['recurso_id'],
+                    "Recurso": recursos_map.get(a['recurso_id'], a['recurso_id']),
                     "Turno": a['turno'],
                     "Horário": a['periodo'],
-                    "Professor": a['professor_id'],
-                    "Turma": a['turma_id']
+                    "Professor": professores_map.get(a['professor_id'], a['professor_id']),
+                    "Turma": turmas_map.get(a['turma_id'], a['turma_id'])
                 })
 
     df = pd.DataFrame(filtrados)
@@ -1345,6 +1396,112 @@ def restore_github_route():
             except Exception as e: 
                 print(f"WARN: Falha ao limpar temp git: {e}") 
                 pass
+
+@app.route('/api/professores/rename', methods=['POST'])
+def rename_professor():
+    if not is_admin():
+        return jsonify({"error": "Não autorizado"}), 403
+    
+    data = request.json
+    prof_id = data.get('id')
+    new_nome = data.get('nome')
+    
+    if not prof_id or not new_nome:
+        return jsonify({"error": "Dados incompletos"}), 400
+
+    from core.models import update_professores, update_usuarios
+    
+    def do_rename_prof(professores):
+        found = False
+        for p in professores:
+            if p.get('id') == prof_id:
+                p['nome'] = new_nome
+                found = True
+                break
+        if not found:
+            raise ValueError("Professor não encontrado")
+        return professores
+
+    def do_rename_user(usuarios):
+        for u in usuarios:
+            if u.get('professor_id') == prof_id:
+                u['nome'] = new_nome
+        return usuarios
+
+    try:
+        update_professores(do_rename_prof)
+        update_usuarios(do_rename_user)
+        return jsonify({"success": True})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/turmas/rename', methods=['POST'])
+def rename_turma():
+    if not is_admin():
+        return jsonify({"error": "Não autorizado"}), 403
+    
+    data = request.json
+    turma_id = data.get('id')
+    new_nome = data.get('turma')
+    
+    if not turma_id or not new_nome:
+        return jsonify({"error": "Dados incompletos"}), 400
+
+    from core.models import update_turmas
+    
+    def do_rename_turma(turmas):
+        found = False
+        for t in turmas:
+            if t.get('id') == turma_id:
+                t['turma'] = new_nome
+                found = True
+                break
+        if not found:
+            raise ValueError("Turma não encontrada")
+        return turmas
+
+    try:
+        update_turmas(do_rename_turma)
+        return jsonify({"success": True})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/recursos/rename', methods=['POST'])
+def rename_recurso():
+    if not is_admin():
+        return jsonify({"error": "Não autorizado"}), 403
+    
+    data = request.json
+    recurso_id = data.get('id')
+    new_nome = data.get('nome')
+    
+    if not recurso_id or not new_nome:
+        return jsonify({"error": "Dados incompletos"}), 400
+
+    from core.models import update_recursos
+    
+    def do_rename_recurso(recursos):
+        found = False
+        for r in recursos:
+            if r.get('id') == recurso_id:
+                r['nome'] = new_nome
+                found = True
+                break
+        if not found:
+            raise ValueError("Recurso não encontrado")
+        return recursos
+
+    try:
+        update_recursos(do_rename_recurso)
+        return jsonify({"success": True})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 # --- Agendamento de Backup Automático (APScheduler) ---
 from apscheduler.schedulers.background import BackgroundScheduler

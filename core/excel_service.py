@@ -6,10 +6,8 @@ class ExcelService:
     def upload_professores(file_path):
         try:
             df = pd.read_excel(file_path, engine='openpyxl')
-            # Normalizar nomes de colunas para facilitar detecção
             df.columns = [str(c).strip().lower() for c in df.columns]
             
-            # Detecção inteligente da coluna de nomes
             target_col = None
             for p in ['professores', 'professor', 'nome', 'docente']:
                 if p in df.columns:
@@ -17,18 +15,28 @@ class ExcelService:
                     break
             
             if not target_col:
-                target_col = df.columns[0] # Fallback para a primeira coluna
+                target_col = df.columns[0]
             
-            novos_professores = df[target_col].dropna().apply(lambda x: str(x).strip()).unique().tolist()
+            nomes_novos = df[target_col].dropna().apply(lambda x: str(x).strip()).unique().tolist()
             
+            import uuid
             def merge_unique(existentes):
-                todos = list(set(existentes + novos_professores))
-                todos.sort()
-                return todos
+                # existentes agora é a lista de objetos {"id": "...", "nome": "..."}
+                nomes_atuais = {p['nome'].lower(): p for p in existentes}
+                
+                for nome in nomes_novos:
+                    if nome.lower() not in nomes_atuais:
+                        existentes.append({
+                            "id": str(uuid.uuid4())[:8],
+                            "nome": nome
+                        })
+                
+                existentes.sort(key=lambda x: x['nome'])
+                return existentes
             
             from .models import update_professores
             update_professores(merge_unique)
-            return True, f"{len(novos_professores)} professores processados."
+            return True, f"{len(nomes_novos)} professores processados."
         except Exception as e:
             return False, f"Erro ao processar professores: {str(e)}"
 
@@ -36,30 +44,35 @@ class ExcelService:
     def upload_turmas(file_path):
         try:
             df = pd.read_excel(file_path, engine='openpyxl')
-            # Normalizar colunas
             df.columns = [str(c).strip().lower() for c in df.columns]
-            print(f"DEBUG: Colunas detectadas em Turmas: {list(df.columns)}")
             
             required = ['turma', 'turno']
             if not all(col in df.columns for col in required):
-                print(f"DEBUG: Falha na validação de colunas Turmas. Faltando algo em {required}")
                 return False, f"A planilha deve conter as colunas: {', '.join(required)}"
             
-            # Limpar dados
             df['turma'] = df['turma'].astype(str).str.strip()
             df['turno'] = df['turno'].astype(str).str.strip().str.capitalize()
             
-            novas_turmas = df[required].dropna().to_dict('records')
+            novas_turmas_raw = df[required].dropna().to_dict('records')
             
+            import uuid
             def merge_turmas(existentes):
-                ids_existentes = { (t['turma'], t['turno']) for t in existentes }
-                para_adicionar = [t for t in novas_turmas if (t['turma'], t['turno']) not in ids_existentes]
-                return existentes + para_adicionar
+                # existentes agora é lista de {"id", "turma", "turno"}
+                chaves_atuais = { (t['turma'].lower(), t['turno'].lower()): t for t in existentes }
+                
+                for nt in novas_turmas_raw:
+                    chave = (nt['turma'].lower(), nt['turno'].lower())
+                    if chave not in chaves_atuais:
+                        existentes.append({
+                            "id": str(uuid.uuid4())[:8],
+                            "turma": nt['turma'],
+                            "turno": nt['turno']
+                        })
+                return existentes
             
             from .models import update_turmas
             update_turmas(merge_turmas)
-            print(f"DEBUG: Upload Turmas - {len(novas_turmas)} processadas.")
-            return True, f"{len(novas_turmas)} turmas verificadas/adicionadas."
+            return True, f"{len(novas_turmas_raw)} turmas verificadas/adicionadas."
         except Exception as e:
             return False, f"Erro ao processar turmas: {str(e)}"
 

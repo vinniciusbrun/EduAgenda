@@ -5,18 +5,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agenda de Recursos Pedagógicos</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=1.2">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}?v=1.2">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/laptop_fix.css') }}?v=1.2">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/welcome.css') }}?v=1.2">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=1.2">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/laptop_fix.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/welcome.css') }}?v={{ app_version }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v={{ app_version }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
     <script>
         window.currentRole = "{{ session.get('role', 'visitante') }}";
-        window.currentUsername = "{{ session.get('user', 'Visitante') }}";
+        window.currentUser = "{{ session.get('user', 'Visitante') }}";
+        window.currentProfessorId = "{{ session.get('professor_id', '') }}";
     </script>
 </head>
 
@@ -508,10 +509,10 @@
 
     <!-- ApexCharts CDN -->
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=1.2"></script>
-    <script src="{{ url_for('static', filename='js/debug.js') }}?v=1.2"></script>
-    <script src="{{ url_for('static', filename='js/welcome.js') }}?v=1.2"></script>
-    <script src="{{ url_for('static', filename='js/dashboard.js') }}?v=1.2"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v={{ app_version }}"></script>
+    <script src="{{ url_for('static', filename='js/debug.js') }}?v={{ app_version }}"></script>
+    <script src="{{ url_for('static', filename='js/welcome.js') }}?v={{ app_version }}"></script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}?v={{ app_version }}"></script>
     <!-- Modal de Configurações (Settings) -->
     <div id="settingsModal" class="modal-overlay">
         <div class="modal modal-premium">
@@ -756,7 +757,7 @@
                                     Software e Versão
                                 </div>
                                 <span id="vLocalLabel"
-                                    style="font-size: 0.65rem; background: rgba(56, 189, 248, 0.1); color: #38bdf8; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.2);">v1.0.0</span>
+                                    style="font-size: 0.65rem; background: rgba(56, 189, 248, 0.1); color: #38bdf8; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.2);">v1.3.0</span>
                             </h4>
                             <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 15px;">Mantenha o sistema
                                 orquestrado e seguro.</p>

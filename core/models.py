@@ -128,33 +128,48 @@ class DataManager:
                 except: pass
 
 def get_professores():
+    """Retorna lista de objetos {"id": "...", "nome": "..."}"""
     data = DataManager.load('professores.json')
     if data and isinstance(data, list):
         for i in range(len(data)):
-            data[i] = SecretManager.decrypt(data[i])
+            # Se for formato antigo (string), converte para objeto (migração on-the-fly)
+            if isinstance(data[i], str):
+                import uuid
+                nome_limpo = SecretManager.decrypt(data[i])
+                data[i] = {"id": str(uuid.uuid4())[:8], "nome": nome_limpo}
+            else:
+                if 'nome' in data[i]:
+                    data[i]['nome'] = SecretManager.decrypt(data[i]['nome'])
     return data
 
 def save_professores(data):
     data_to_save = []
     for p in data:
-        if isinstance(p, str) and not SecretManager.is_encrypted(p):
-            data_to_save.append(SecretManager.encrypt(p))
-        else:
-            data_to_save.append(p)
+        p_copy = p.copy()
+        if 'nome' in p_copy and not SecretManager.is_encrypted(p_copy['nome']):
+            p_copy['nome'] = SecretManager.encrypt(p_copy['nome'])
+        data_to_save.append(p_copy)
     DataManager.save('professores.json', data_to_save)
 
 def get_turmas():
+    """Retorna lista de objetos {"id": "...", "turma": "...", "turno": "..."}"""
     data = DataManager.load('turmas.json')
     if data and isinstance(data, list):
         for t in data:
-            if 'turma' in t: t['turma'] = SecretManager.decrypt(t['turma'])
+            if 'id' not in t:
+                import uuid
+                t['id'] = str(uuid.uuid4())[:8]
+            if 'turma' in t: 
+                t['turma'] = SecretManager.decrypt(t['turma'])
     return data
 
 def save_turmas(data):
-    data_to_save = json.loads(json.dumps(data))
-    for t in data_to_save:
-        if 'turma' in t and not SecretManager.is_encrypted(t['turma']):
-            t['turma'] = SecretManager.encrypt(t['turma'])
+    data_to_save = []
+    for t in data:
+        t_copy = t.copy()
+        if 'turma' in t_copy and not SecretManager.is_encrypted(t_copy['turma']):
+            t_copy['turma'] = SecretManager.encrypt(t_copy['turma'])
+        data_to_save.append(t_copy)
     DataManager.save('turmas.json', data_to_save)
 
 def get_agendamentos():
@@ -177,21 +192,37 @@ def save_agendamentos(data):
 
 def update_professores(callback):
     def secure_callback(profs):
+        # 1. Preparar profs para o callback (descriptografar)
         for i in range(len(profs)):
-            profs[i] = SecretManager.decrypt(profs[i])
+            if isinstance(profs[i], str):
+                import uuid
+                nome = SecretManager.decrypt(profs[i])
+                profs[i] = {"id": str(uuid.uuid4())[:8], "nome": nome}
+            elif 'nome' in profs[i]:
+                profs[i]['nome'] = SecretManager.decrypt(profs[i]['nome'])
+        
+        # 2. Executar lógica
         new_profs = callback(profs)
+        
+        # 3. Criptografar para salvar
         if new_profs is not None:
             for i in range(len(new_profs)):
-                if isinstance(new_profs[i], str) and not SecretManager.is_encrypted(new_profs[i]):
-                    new_profs[i] = SecretManager.encrypt(new_profs[i])
+                if 'nome' in new_profs[i] and not SecretManager.is_encrypted(new_profs[i]['nome']):
+                    new_profs[i]['nome'] = SecretManager.encrypt(new_profs[i]['nome'])
         return new_profs
     return DataManager.update('professores.json', secure_callback)
 
 def update_turmas(callback):
     def secure_callback(turmas):
         for t in turmas:
-            if 'turma' in t: t['turma'] = SecretManager.decrypt(t['turma'])
+            if 'id' not in t: 
+                import uuid
+                t['id'] = str(uuid.uuid4())[:8]
+            if 'turma' in t: 
+                t['turma'] = SecretManager.decrypt(t['turma'])
+        
         new_turmas = callback(turmas)
+        
         if new_turmas is not None:
             for t in new_turmas:
                 if 'turma' in t and not SecretManager.is_encrypted(t['turma']):

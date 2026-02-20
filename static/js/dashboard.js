@@ -123,6 +123,32 @@ const DashboardAdmin = {
 
             if (data.error) throw new Error(data.error);
 
+            // Garante que os mapas para IDs estão carregados com TODOS os dados, 
+            // ignorando possíveis preenchimentos parciais feitos pelo main.js (ex: turno específico)
+            if (!window.dashboardTurmasLoaded) {
+                window.turmasMap = window.turmasMap || {};
+                try {
+                    const tr = await fetch('/api/turmas');
+                    if (tr.ok) {
+                        const turmas = await tr.json();
+                        turmas.forEach(t => window.turmasMap[t.id.toLowerCase()] = t.turma);
+                        window.dashboardTurmasLoaded = true;
+                    }
+                } catch (e) { console.error("[BI] Erro ao carregar mapa de turmas", e); }
+            }
+
+            if (!window.dashboardProfsLoaded) {
+                window.professoresMap = window.professoresMap || {};
+                try {
+                    const pr = await fetch('/api/professores');
+                    if (pr.ok) {
+                        const profs = await pr.json();
+                        profs.forEach(p => window.professoresMap[p.professor_id.toLowerCase()] = p.nome);
+                        window.dashboardProfsLoaded = true;
+                    }
+                } catch (e) { console.error("[BI] Erro ao carregar mapa de professores", e); }
+            }
+
             const nav = document.getElementById('dashboardTabsNav');
             const container = document.getElementById('resourceTabsContainer');
 
@@ -259,7 +285,15 @@ const DashboardAdmin = {
         const tp = global.rankings?.turmas_por_turno || {};
         const setTop = (id, list) => {
             const el = document.getElementById(id);
-            if (el) el.innerText = (list && list.length) ? list[0][0].toUpperCase() : '---';
+            if (el && list && list.length) {
+                const itemId = list[0][0];
+                console.log(`[BI DEBUG] Resolvendo ${id}: ID raw='${itemId}'`);
+                console.log(`[BI DEBUG] turmasMap contém:`, window.turmasMap);
+                const itemName = (window.turmasMap && window.turmasMap[itemId.toLowerCase()]) || itemId;
+                el.innerText = itemName.toUpperCase();
+            } else if (el) {
+                el.innerText = '---';
+            }
         };
 
         setTop('topTurmaMat', tp.Matutino);
@@ -315,6 +349,9 @@ const DashboardAdmin = {
         btn.innerText = rdata.nome;
         nav.appendChild(btn);
 
+        const topProfId = rdata.rankings?.professores?.[0]?.[0];
+        const topProfName = topProfId ? (window.professoresMap[topProfId] || topProfId).toUpperCase() : '---';
+
         const section = document.createElement('div');
         section.id = `tab-${slug}`;
         section.className = 'tab-content';
@@ -326,7 +363,7 @@ const DashboardAdmin = {
                 </div>
                 <div class="dashboard-card" style="background:#1e293b; padding:25px; border-radius:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align: center;">
                     <h4 style="color:#94a3b8; font-size:0.8rem; text-transform:uppercase;">Destaque Local</h4>
-                    <h2 style="color:#38bdf8; font-size:1.4rem; margin:15px 0;">${rdata.rankings?.professores?.[0]?.[0] || '---'}</h2>
+                    <h2 style="color:#38bdf8; font-size:1.4rem; margin:15px 0;">${topProfName}</h2>
                 </div>
                 <div class="dashboard-card" style="background:#1e293b; padding:25px; border-radius:12px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align: center;">
                     <h4 style="color:#94a3b8; font-size:0.8rem; text-transform:uppercase;">Aulas Reservadas</h4>
@@ -451,7 +488,15 @@ const DashboardAdmin = {
 
     renderRankings(id, list, color) {
         const series = (list && list.length) ? [{ name: 'Contagem', data: list.map(i => i[1]) }] : [{ name: 'Contagem', data: [] }];
-        const cats = (list && list.length) ? list.map(i => i[0].toUpperCase()) : [];
+        const cats = (list && list.length) ? list.map(i => {
+            const idKey = i[0];
+            const lowerId = idKey.toLowerCase();
+            // Tenta traduzir via mapas globais carregados no loadData
+            const translated = (window.professoresMap && window.professoresMap[lowerId]) ||
+                (window.turmasMap && window.turmasMap[lowerId]) ||
+                idKey;
+            return translated.toUpperCase();
+        }) : [];
 
         // Se a lista for vazia, o gráfico deve mostrar "Sem Dados" ou simplesmente ficar vazio em vez de não renderizar
         this.createChart(id, {

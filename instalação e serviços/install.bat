@@ -2,11 +2,26 @@
 setlocal enabledelayedexpansion
 
 echo ==========================================
-echo   EduAgenda - Super Instalador v2.0
+echo   EduAgenda - Super Instalador v2.1
 echo   Arquitetura: Software com Vida
 echo ==========================================
 
-:: 1. Bootstrap de Dependencias (Python e Git)
+:: 1. Detecção de Versão Dinâmica
+if not exist "..\\version.json" (
+    echo [!] Arquivo version.json nao encontrado em ..\\
+    pause
+    exit /b
+)
+
+for /f "tokens=2 delims=:," %%a in ('findstr "version" ..\\version.json') do (
+    set "V_TAG=%%a"
+    set "V_TAG=!V_TAG:"=!"
+    set "V_TAG=!V_TAG: =!"
+)
+set "V_TAG=v!V_TAG!"
+echo [i] Versao Detectada: %V_TAG%
+
+:: 2. Bootstrap de Dependencias (Python e Git)
 echo [*] Garantindo Python e Git no sistema...
 powershell -ExecutionPolicy Bypass -File "%~dp0bootstrap.ps1"
 if errorlevel 1 goto :bootstrap_fail
@@ -14,8 +29,20 @@ if errorlevel 1 goto :bootstrap_fail
 :: Recarregar PATH
 for /f "tokens=*" %%a in ('powershell -command "[System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User')"') do set "PATH=%%a"
 
-:: 2. Definir Estrutura Raiz
-set "ROOT=C:\EduAgenda"
+:: 3. Definir Estrutura Raiz (Pergunta ao usuario)
+set "DEFAULT_ROOT=C:\EduAgenda"
+echo.
+echo Onde deseja instalar o EduAgenda?
+echo [1] Padrao (%DEFAULT_ROOT%)
+echo [2] Pasta Atual (%CD%\..)
+set /p "CHOICE=Opcao (1/2) [1]: "
+
+if "%CHOICE%"=="2" (
+    set "ROOT=%CD%\.."
+) else (
+    set "ROOT=%DEFAULT_ROOT%"
+)
+
 echo [*] Preparando estrutura em: %ROOT%
 
 if not exist "%ROOT%" mkdir "%ROOT%"
@@ -25,28 +52,28 @@ if not exist "%ROOT%\shared\data" mkdir "%ROOT%\shared\data"
 if not exist "%ROOT%\shared\logs" mkdir "%ROOT%\shared\logs"
 if not exist "%ROOT%\manager" mkdir "%ROOT%\manager"
 
-:: 3. Sincronizacao da Versao Inicial (v1.2.0)
-set "V_TAG=v1.2.0"
+:: 4. Sincronizacao da Versao
 set "INIT_V_PATH=%ROOT%\versions\%V_TAG%"
 
-echo [*] Instalando Versao Base (%V_TAG%)...
-if not exist "%INIT_V_PATH%" (
-    mkdir "%INIT_V_PATH%"
+echo [*] Instalando/Atualizando Versao %V_TAG%...
+if not exist "%INIT_V_PATH%" mkdir "%INIT_V_PATH%"
+
+:: Se estivermos rodando de dentro de um repo, copiamos em vez de clonar se for a mesma versao
+if exist "..\\app.py" (
+    echo [*] Copiando arquivos locais para a pasta da versao...
+    xcopy /s /e /y /i "..\\*" "%INIT_V_PATH%\\"
+) else (
+    echo [*] Clonando versao do GitHub...
     cd /d "%INIT_V_PATH%"
     git clone https://github.com/vinniciusbrun/EduAgenda.git .
-) else (
-    echo [i] Versao %V_TAG% ja existe.
-    cd /d "%INIT_V_PATH%"
-    git fetch --all
-    git reset --hard origin/master
 )
 
-:: 4. Migrar/Configurar Orquestrador
+:: 5. Configurar Orquestrador na Raiz
 echo [*] Configurando Orquestrador...
 copy /y "%INIT_V_PATH%\manager\manager.py" "%ROOT%\manager\manager.py"
 copy /y "%INIT_V_PATH%\run_eduagenda.bat" "%ROOT%\run_eduagenda.bat"
 
-:: 5. Setup do Ambiente Virtual (venv) na versao
+:: 6. Setup do Ambiente Virtual (venv) na versao
 cd /d "%INIT_V_PATH%"
 if not exist "venv\Scripts\activate.bat" (
     echo [*] Criando ambiente virtual para %V_TAG%...
@@ -59,16 +86,20 @@ python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 if errorlevel 1 goto :pip_fail
 
-:: 6. Inicializacao do Banco de Dados
+:: 7. Inicializacao do Banco de Dados
 echo [*] Inicializando banco de dados compartilhado...
+:: O app.py ja sabe ler EDU_DATA_PATH se o Manager setar, mas aqui rodamos direto
 set "EDU_DATA_PATH=%ROOT%\shared\data"
 python init_db.py
 
 echo.
 echo ==========================================
 echo   Instalacao Concluida! 
+echo   Versao: %V_TAG%
+echo   Local: %ROOT%
+echo   
 echo   Use o 'run_eduagenda.bat' na raiz de 
-echo   C:\EduAgenda para iniciar o sistema.
+echo   %ROOT% para iniciar o sistema.
 echo ==========================================
 echo.
 

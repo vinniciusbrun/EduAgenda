@@ -82,7 +82,7 @@ header {
 }
 
 .school-name {
-    font-size: 1.1rem;
+    font-size: 0.95rem;
     font-weight: 700;
     color: var(--text-primary);
     border: 1px solid transparent;
@@ -91,52 +91,32 @@ header {
     transition: var(--transition);
     letter-spacing: -0.03em;
     margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 400px;
+    /* Evita que cresça demais para a direita */
 }
 
-.school-name[contenteditable="true"]:hover {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: var(--border-color);
-}
-
-.school-name[contenteditable="true"]:focus {
-    outline: none;
-    background: rgba(255, 255, 255, 0.1);
-    border-color: var(--accent-color);
-}
-
-.coordinator-area {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    border-left: 1px solid var(--border-color);
-    padding-left: 1rem;
-    gap: 2px;
-}
-
-.coordinator-label {
-    font-size: 0.65rem;
-    text-transform: uppercase;
-    color: var(--text-secondary);
-    font-weight: 700;
-    letter-spacing: 0.05em;
-}
-
-.coordinator-name {
-    font-size: 0.9rem;
-    font-weight: 600;
-    color: var(--text-primary);
-    padding: 2px 6px;
-    border-radius: 4px;
+.coordinator-name,
+.editable-label {
+    cursor: text;
+    padding: 4px 10px;
+    border-radius: 8px;
     transition: var(--transition);
     border: 1px solid transparent;
 }
 
-.coordinator-name[contenteditable="true"]:hover {
+.school-name[contenteditable="true"]:hover,
+.coordinator-name[contenteditable="true"]:hover,
+.editable-label:hover {
     background: rgba(255, 255, 255, 0.05);
     border-color: var(--border-color);
 }
 
-.coordinator-name[contenteditable="true"]:focus {
+.school-name[contenteditable="true"]:focus,
+.coordinator-name[contenteditable="true"]:focus,
+.editable-label:focus {
     outline: none;
     background: rgba(255, 255, 255, 0.1);
     border-color: var(--accent-color);
@@ -532,18 +512,48 @@ td {
 }
 
 .slot .actions {
-    margin-top: 0.4rem;
+    position: absolute;
+    top: 5px;
+    right: 5px;
     display: none;
+    flex-direction: column;
+    gap: 4px;
+    background: rgba(15, 23, 42, 0.8);
+    padding: 4px;
+    border-radius: 6px;
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    z-index: 10;
 }
 
 .slot.filled:hover .actions {
     display: flex;
-    gap: 0.4rem;
+}
+
+.slot.locked {
+    opacity: 0.8;
+    filter: grayscale(0.4);
+    border: 1px dashed rgba(255, 255, 255, 0.2) !important;
+}
+
+.lock-indicator {
+    position: absolute;
+    bottom: 5px;
+    right: 5px;
+    font-size: 0.8rem;
+    opacity: 0.6;
 }
 
 .btn-small {
-    padding: 0.2rem 0.4rem;
-    font-size: 0.7rem;
+    padding: 4px 6px;
+    font-size: 0.75rem;
+    line-height: 1;
+    border-radius: 4px;
+    min-width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 /* Modals */

@@ -1,10 +1,13 @@
 // Variáveis Globais (Preserva valores injetados pelo servidor se existirem)
 window.currentRole = window.currentRole || null;
 window.currentUser = window.currentUser || null;
+window.currentProfessorId = window.currentProfessorId || null;
 window.editMode = false;
 window.currentSchedule = [];
 window.currentResource = 'lab1';
 window.currentShift = 'Matutino';
+window.professoresMap = {};
+window.turmasMap = {};
 
 const DIAS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
 const HORARIOS_PERIODOS = {
@@ -14,17 +17,22 @@ const HORARIOS_PERIODOS = {
 };
 
 // Inicialização
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const monday = getMonday(new Date()).toISOString().split('T')[0];
     const semanaInput = document.getElementById('semanaSelect');
     if (semanaInput) semanaInput.value = monday;
 
-    updateShift('Matutino');
+    // Automação de Turno inicial por horário
+    autoSelectShift();
 
-    checkAuth();
-    loadConfig();
-    loadResources();
-    loadProfessores();
+    // Garantir que carregamos os nomes ANTES de tentar renderizar o grid
+    await loadConfig();
+    await loadResources();
+    await loadProfessores(); // Preenche window.professoresMap
+    await checkAuth();       // Agora o checkAuth pode pre-selecionar corretamente no Select
+
+    // Agora sim renderiza o turno inicial
+    await onTurnoChange();
 
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
@@ -41,25 +49,46 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 
+function getShiftByTime() {
+    const hours = new Date().getHours();
+    if (hours >= 18) return 'Noturno';
+    if (hours >= 12) return 'Vespertino';
+    return 'Matutino';
+}
+
+function autoSelectShift() {
+    const shift = getShiftByTime();
+    window.currentShift = shift;
+
+    // Atualiza botões visuais de turno (se existirem)
+    document.querySelectorAll('.floating-shift-selector button').forEach(btn => {
+        const btnText = btn.innerText.trim().toUpperCase();
+        const shiftUpper = shift.toUpperCase();
+        btn.classList.toggle('active', btnText === shiftUpper);
+    });
+}
+
 async function checkAuth() {
     try {
         const res = await fetch('/api/auth/me');
         const data = await res.json();
         if (!data.logged) {
             window.currentUser = null;
-            window.currentRole = null;
+            window.currentProfessorId = null;
+            window.currentRole = 'visitante';
             updateUserUI("Visitante");
         } else {
             window.currentUser = data.user;
             window.currentRole = data.role;
-            updateUserUI(data.nome);
+            window.currentProfessorId = data.professor_id;
+            updateUserUI(data.nome, data.user, data.professor_id);
         }
     } catch (e) {
         console.error("Erro na autenticação:", e);
     }
 }
 
-function updateUserUI(nome) {
+function updateUserUI(nome, username, profId) {
     const userNameEl = document.getElementById('userName');
     if (userNameEl) userNameEl.innerText = nome === "Visitante" ? "Visitante (Apenas Leitura)" : `Usuário: ${nome}`;
 
@@ -83,7 +112,19 @@ function updateUserUI(nome) {
 
     if (selectionBar) selectionBar.style.display = 'flex';
 
-    if (window.currentRole === 'admin' || window.currentRole === 'root') {
+    // Helper to check if user is staff (admin or root)
+    const isStaff = () => {
+        if (!window.currentRole) return false;
+        const role = window.currentRole.toLowerCase();
+        return role === 'admin' || role === 'root';
+    };
+    // Helper to check if user is a professor
+    const isProfessor = () => {
+        if (!window.currentRole) return false;
+        return window.currentRole.toLowerCase() === 'professor';
+    };
+
+    if (isStaff()) {
         if (schoolNameLabel) schoolNameLabel.contentEditable = true;
         if (coordinatorNameLabel) coordinatorNameLabel.contentEditable = true;
         setupBrandListeners();
@@ -101,12 +142,14 @@ function updateUserUI(nome) {
         if (groupProf) groupProf.style.display = 'flex';
         if (groupFreq) groupFreq.style.display = 'flex';
         if (btnEditGrid) btnEditGrid.style.display = 'block';
-    } else if (window.currentRole === 'professor') {
+    } else if (isProfessor()) {
         if (schoolNameLabel) schoolNameLabel.contentEditable = false;
 
         const profSelect = document.getElementById('profSelect');
-        if (profSelect) {
-            profSelect.value = nome;
+        if (profSelect && profId) {
+            profSelect.value = profId;
+            profSelect.style.pointerEvents = 'none'; // Trava estrita
+            profSelect.style.background = 'rgba(0,0,0,0.2)';
             profSelect.disabled = true;
         }
 
@@ -163,6 +206,7 @@ async function handleLogin(e) {
         closeModal('loginModal');
         window.currentUser = result.user;
         window.currentRole = result.role;
+        window.currentProfessorId = result.professor_id;
 
         // Se for Root ou Admin, recarrega a página para processar blocos server-side (Jinja2)
         if (result.role === 'root' || result.role === 'admin') {
@@ -170,7 +214,7 @@ async function handleLogin(e) {
             return;
         }
 
-        updateUserUI(result.nome);
+        updateUserUI(result.nome, result.user, result.professor_id);
         await loadConfig();
         loadSchedule();
     } else {
@@ -219,11 +263,24 @@ function selectResource(id) {
 
 async function loadProfessores() {
     const res = await fetch('/api/professores');
-    const profs = await res.json();
+    const profs = await res.json(); // Array de {id, nome}
+
+    // Atualiza Mapa Global
+    window.professoresMap = {};
+    profs.forEach(p => window.professoresMap[p.id] = p.nome);
+
     const select = document.getElementById('profSelect');
     if (select) {
         select.innerHTML = '<option value="">Selecione</option>';
-        profs.forEach(p => select.innerHTML += `<option value="${p}">${p}</option>`);
+        profs.forEach(p => select.innerHTML += `<option value="${p.id}">${p.nome}</option>`);
+    }
+
+    // Se for professor logado, pré-seleciona e trava
+    if (window.currentRole === 'professor' && window.currentProfessorId) {
+        if (select) {
+            select.value = window.currentProfessorId;
+            select.disabled = true;
+        }
     }
 }
 
@@ -233,12 +290,17 @@ async function onTurnoChange() {
 
     const res = await fetch(`/api/turmas?turno=${turno}`);
     const turmas = await res.json();
+
+    // Atualiza Mapa Global (acumulativo por turno ou resetado?)
+    // Melhor acumular para evitar quebra se o usuário trocar de aba rápido
+    turmas.forEach(t => window.turmasMap[t.id] = t.turma);
+
     if (turmaSelect) {
         turmaSelect.disabled = false;
         turmaSelect.innerHTML = '<option value="">Selecione</option>';
         // Filtra turmas ativas
         const activeTurmas = turmas.filter(t => t.active !== false);
-        activeTurmas.forEach(t => turmaSelect.innerHTML += `<option value="${t.turma}">${t.turma}</option>`);
+        activeTurmas.forEach(t => turmaSelect.innerHTML += `<option value="${t.id}">${t.turma}</option>`);
     }
 
     renderGridStructure(turno);
@@ -352,30 +414,55 @@ function updateGridUI(agendamentos) {
         const [, dia, p] = s.id.split('-');
         const horaStart = HORARIOS_PERIODOS[turno][p];
         const isDisabled = checkIsPast(semana, DIAS.indexOf(dia), horaStart);
-        s.innerHTML = isDisabled ? '' : '<span class="placeholder">+</span>';
-        s.className = 'slot' + (isDisabled ? ' disabled' : '');
+
+        // Atualiza conteúdo e interatividade
+        if (isDisabled) {
+            s.innerHTML = '';
+            s.onclick = null;
+        } else {
+            s.innerHTML = '<span class="placeholder">+</span>';
+            s.onclick = () => onSlotClick(dia, p);
+        }
+
+        // Mantém a classe 'editable' se o modo de edição estiver ativo
+        // Admin/Root ignoram trava de slot para poder destravar, mas ainda respeitam o 'passado'
+        const isEditable = window.editMode && !isDisabled && (!s.classList.contains('locked') || window.currentRole === 'admin' || window.currentRole === 'root');
+        s.className = 'slot' + (isDisabled ? ' disabled' : '') + (isEditable ? ' editable' : '');
     });
     agendamentos.forEach(a => {
         const slot = document.getElementById(`slot-${a.dia}-${a.periodo}`);
         if (!slot) return;
-        const isNotStaff = window.currentRole !== 'admin' && window.currentRole !== 'root';
-        const isOther = isNotStaff && a.criado_por !== window.currentUser;
-        slot.className = `slot filled ${a.locked ? 'locked' : ''} ${isOther ? 'other-user' : ''} ${a.tipo === 'evento' ? 'evento' : ''}`;
-        slot.innerHTML = `<div class="professor">${a.professor_id}</div><div class="turma">${a.turma_id}</div>`;
+
+        const isStaff = window.currentRole && (window.currentRole.toLowerCase() === 'admin' || window.currentRole.toLowerCase() === 'root');
+        if (a.locked) slot.classList.add('locked');
+        slot.classList.add('filled');
+
+        const isOwner = a.criado_por === window.currentUser;
+        const isAssigned = window.currentProfessorId && a.professor_id === window.currentProfessorId;
+
+        const profNome = window.professoresMap[a.professor_id] || a.professor_id;
+        const turmaNome = window.turmasMap[a.turma_id] || a.turma_id;
+
+        slot.innerHTML = `<div class="professor">${profNome}</div><div class="turma">${turmaNome}</div>`;
+
         const actions = document.createElement('div');
         actions.className = 'actions';
-        if (window.currentRole === 'admin' || window.currentRole === 'root' || (a.criado_por === window.currentUser && !a.locked)) {
+
+        // Se for admin ou dono do horário ou professor designado (e não estiver travado)
+        if (isStaff || ((isOwner || isAssigned) && !a.locked)) {
             const del = document.createElement('button');
             del.className = 'btn-small'; del.textContent = '✕';
             del.onclick = (e) => deleteSlot(e, a.id, a.dia, a.periodo, a.turma_id, a.turno);
             actions.appendChild(del);
         }
-        if (window.currentRole === 'admin' || window.currentRole === 'root') {
+
+        if (isStaff) {
             const lock = document.createElement('button');
-            lock.className = 'btn-small'; lock.textContent = a.locked ? '🔓' : '🔒';
+            lock.className = 'btn-small'; lock.textContent = a.locked ? '🔒' : '🔓';
             lock.onclick = (e) => toggleLock(e, a.id, a.dia, a.periodo, !a.locked, a.turma_id, a.turno);
             actions.appendChild(lock);
         }
+
         slot.appendChild(actions);
         if (a.locked) {
             const icon = document.createElement('div'); icon.className = 'lock-indicator'; icon.textContent = '🔒';
@@ -413,6 +500,12 @@ function onTipoAgendamentoChange() {
 async function onSlotClick(dia, periodo) {
     if (!window.currentUser) return openModal('loginModal');
     if (!window.editMode) return;
+
+    const activeResourceBtn = document.querySelector('#resourceSelectorVisitor button.active');
+    if (!activeResourceBtn) {
+        return showToast("Por favor, selecione um RESURSO (Laboratório) antes de agendar.", "warning");
+    }
+
     const tipo = document.getElementById('tipoAgendamentoSelect')?.value || 'aula';
     const turno = window.currentShift;
     const semana = document.getElementById('semanaSelect')?.value || '';
@@ -715,13 +808,17 @@ async function loadSettingsResources() {
             item.style.padding = '10px 0';
             item.style.marginBottom = '10px';
             item.innerHTML = `
-                <label class="toggle-switch">
-                    <div class="toggle-label">
-                        <span>${r.nome}</span>
-                        <small>${r.tipo.toUpperCase()}</small>
+                <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                    <div style="flex: 1;">
+                        <span class="editable-label" contenteditable="true" 
+                            onblur="renameEntity('recursos', '${r.id}', this.innerText)"
+                            style="font-weight: 600; display: block;">${r.nome}</span>
+                        <small style="color: #64748b; margin-left: 4px;">${r.tipo.toUpperCase()}</small>
                     </div>
-                    <input type="checkbox" class="resource-toggle" data-id="${r.id}" data-nome="${r.nome}" data-tipo="${r.tipo}" ${r.active !== false ? 'checked' : ''}>
-                </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" class="resource-toggle" data-id="${r.id}" data-nome="${r.nome}" data-tipo="${r.tipo}" ${r.active !== false ? 'checked' : ''}>
+                    </label>
+                </div>
             `;
             listContainer.appendChild(item);
         });
@@ -742,13 +839,17 @@ async function loadSettingsProfessors() {
             item.style.padding = '10px 0';
             item.style.marginBottom = '10px';
             item.innerHTML = `
-                <label class="toggle-switch">
-                    <div class="toggle-label">
-                        <span>${p.nome}</span>
-                        <small>${p.username}</small>
+                <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                    <div style="flex: 1;">
+                        <span class="editable-label" contenteditable="true" 
+                            onblur="renameEntity('professores', '${p.professor_id}', this.innerText)"
+                            style="font-weight: 600; display: block;">${p.nome}</span>
+                        <small style="color: #64748b; margin-left: 4px;">@${p.username}</small>
                     </div>
-                    <input type="checkbox" class="professor-toggle" data-username="${p.username}" ${p.active !== false ? 'checked' : ''}>
-                </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" class="professor-toggle" data-username="${p.username}" ${p.active !== false ? 'checked' : ''}>
+                    </label>
+                </div>
             `;
             profListContainer.appendChild(item);
         });
@@ -769,17 +870,54 @@ async function loadSettingsTurmas() {
             item.style.padding = '10px 0';
             item.style.marginBottom = '10px';
             item.innerHTML = `
-                <label class="toggle-switch">
-                    <div class="toggle-label">
-                        <span>${t.turma}</span>
-                        <small>${t.turno}</small>
+                <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
+                    <div style="flex: 1;">
+                        <span class="editable-label" contenteditable="true" 
+                            onblur="renameEntity('turmas', '${t.id}', this.innerText)"
+                            style="font-weight: 600; display: block;">${t.turma}</span>
+                        <small style="color: #64748b; margin-left: 4px;">${t.turno}</small>
                     </div>
-                    <input type="checkbox" class="turma-toggle" data-turma="${t.turma}" data-turno="${t.turno}" ${t.active !== false ? 'checked' : ''}>
-                </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" class="turma-toggle" data-turma="${t.turma}" data-turno="${t.turno}" ${t.active !== false ? 'checked' : ''}>
+                    </label>
+                </div>
             `;
             turmasListContainer.appendChild(item);
         });
     } catch (e) { console.error("Erro turmas settings:", e); }
+}
+
+async function renameEntity(type, id, newNome) {
+    if (!newNome || !newNome.trim()) return;
+    const cleanNome = newNome.trim();
+
+    // Payload varia conforme o tipo (legado do backend)
+    let payload = { id, nome: cleanNome };
+    if (type === 'turmas') payload = { id, turma: cleanNome };
+
+    try {
+        const res = await fetch(`/api/${type}/rename`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const result = await res.json();
+        if (result.success) {
+            showToast("Renomeado com sucesso!");
+            // Atualiza mapas locais para a agenda refletir na hora se estiver aberta
+            if (type === 'professores') window.professoresMap[id] = cleanNome;
+            if (type === 'turmas') window.turmasMap[id] = cleanNome;
+
+            // Recarrega os dados globais para consistência nos selects
+            if (type === 'professores') loadProfessores();
+            if (type === 'turmas') onTurnoChange();
+            if (type === 'recursos') selectResource(window.currentResource);
+        } else {
+            showToast(result.error || "Erro ao renomear", "error");
+        }
+    } catch (e) {
+        showToast("Erro de conexão", "error");
+    }
 }
 
 async function openSettingsModal() {
@@ -813,6 +951,7 @@ async function openSettingsModal() {
         await loadSettingsProfessors();
         await loadSettingsTurmas();
 
+        openSettingsTab('geral');
         openModal('settingsModal');
     } catch (e) {
         console.error("Erro ao abrir configurações:", e);
