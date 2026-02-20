@@ -2,6 +2,17 @@
 
 Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 
+## [1.3.8] - 2026-02-20
+
+### Melhorado
+- **Watchdog Fallback (Anti-Crash)**: Implementado um salva-vidas no orquestrador. Se uma atualização recém baixada possuir algum erro fatal que impeça o sistema de rodar (crashando em menos de 15 segundos após o boot), o Watchdog (`manager.py`) detecta a falha, bloqueia e renomeia a versão corrompida (ex: `v2.0_FAILED`), e ressuscita automaticamente a última versão estável conhecida. Isso garante 100% de uptime (disponibilidade) no painel das escolas.
+
+## [1.3.7] - 2026-02-20
+
+### Melhorado
+- **Watchdog Updater Diferido**: A lógica de atualização foi aprimorada! Agora, quando um gestor clica em "Atualizar", o sistema apenas *baixa* os arquivos em background e os empacota numa nova versão. O reinício do sistema foi movido para o orquestrador (`manager.py`), que constantemente monitora a pasta de versões.
+- **Hot-Swap Silencioso Inteligente**: O orquestrador agora sabe se o servidor Flask está sendo usado ativamente através da nova rota interna `/api/sys/status`. Se uma nova versão for detectada e o sistema estiver ocioso por mais de 3 minutos consecutivos (sem requisições), o orquestrador fará o "Hot-Swap" parando o processo antigo e subindo a nova versão automaticamente.
+
 ## [1.3.5] - 2026-02-20
 
 ### Melhorado

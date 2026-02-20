@@ -7,19 +7,18 @@ echo   Arquitetura: Software com Vida
 echo ==========================================
 
 :: 1. Detecção de Versão Dinâmica
-if not exist "..\\version.json" (
-    echo [!] Arquivo version.json nao encontrado em ..\\
-    pause
-    exit /b
+if exist "..\\version.json" (
+    for /f "tokens=2 delims=:," %%a in ('findstr "version" ..\\version.json') do (
+        set "V_TAG=%%a"
+        set "V_TAG=!V_TAG:"=!"
+        set "V_TAG=!V_TAG: =!"
+    )
+    set "V_TAG=v!V_TAG!"
+    echo [i] Versao Detectada: !V_TAG!
+) else (
+    echo [i] Arquivo version.json nao encontrado. Assumindo primeira instalacao limpa ^(main^).
+    set "V_TAG=main"
 )
-
-for /f "tokens=2 delims=:," %%a in ('findstr "version" ..\\version.json') do (
-    set "V_TAG=%%a"
-    set "V_TAG=!V_TAG:"=!"
-    set "V_TAG=!V_TAG: =!"
-)
-set "V_TAG=v!V_TAG!"
-echo [i] Versao Detectada: %V_TAG%
 
 :: 2. Bootstrap de Dependencias (Python e Git)
 echo [*] Garantindo Python e Git no sistema...
@@ -69,9 +68,10 @@ if exist "..\\app.py" (
 )
 
 :: 5. Configurar Orquestrador na Raiz
-echo [*] Configurando Orquestrador...
+echo [*] Configurando Orquestrador e Botoes de Controle...
 copy /y "%INIT_V_PATH%\manager\manager.py" "%ROOT%\manager\manager.py"
 copy /y "%INIT_V_PATH%\run_eduagenda.bat" "%ROOT%\run_eduagenda.bat"
+copy /y "%INIT_V_PATH%\instalação e serviços\2 - Parar Sistema.bat" "%ROOT%\2 - Parar Sistema.bat"
 
 :: 6. Setup do Ambiente Virtual (venv) na versao
 cd /d "%INIT_V_PATH%"

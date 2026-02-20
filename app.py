@@ -43,6 +43,22 @@ HORARIOS_PERIODOS = {
 DIAS_INDEX = {'Segunda': 0, 'Terça': 1, 'Quarta': 2, 'Quinta': 3, 'Sexta': 4}
 
 app = Flask(__name__)
+
+# Tracking global inactivity
+last_activity_time = datetime.now()
+
+@app.before_request
+def track_activity():
+    global last_activity_time
+    if request.path != '/api/sys/status':
+        last_activity_time = datetime.now()
+
+@app.route('/api/sys/status', methods=['GET'])
+def sys_status():
+    global last_activity_time
+    idle_seconds = (datetime.now() - last_activity_time).total_seconds()
+    return jsonify({"status": "running", "idle_seconds": idle_seconds})
+
 # Load version information from version.json
 try:
     with open(os.path.join(os.path.dirname(__file__), 'version.json'), 'r', encoding='utf-8') as f:
@@ -2017,22 +2033,7 @@ def install_update_endpoint():
     success, message = Updater.install_update(repo_url, token)
     
     if success:
-        # Trigger restart in 3 seconds to allow response to reach client
-        def restart_server():
-            import time
-            time.sleep(3)
-            # No Windows, criamos um .bat temporário para reiniciar
-            with open('restart.bat', 'w') as f:
-                f.write('@echo off\n')
-                f.write('timeout /t 2 /nobreak > nul\n')
-                f.write('python app.py\n')
-                f.write('del restart.bat\n')
-            
-            subprocess.Popen(['restart.bat'], shell=True)
-            os._exit(0)
-            
-        import threading
-        threading.Thread(target=restart_server).start()
+        message += " O sistema iniciará a atualização automaticamente quando estiver ocioso."
         
     return jsonify({"success": success, "message": message})
 

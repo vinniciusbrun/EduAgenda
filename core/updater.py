@@ -224,6 +224,11 @@ class Updater:
             for item in os.listdir(inner_dir):
                 shutil.move(os.path.join(inner_dir, item), target_dir)
             
+            # Copiar Botão de Pânico (Parar Sistema) para a raiz da nova versão
+            panic_button_src = os.path.join(target_dir, "instalação e serviços", "2 - Parar Sistema.bat")
+            if os.path.exists(panic_button_src):
+                shutil.copy(panic_button_src, os.path.join(target_dir, "2 - Parar Sistema.bat"))
+            
             # 4. Criar VENV na nova versão
             logging.info(f"Criando venv para a nova versão v{new_v}...")
             subprocess.run([sys.executable, "-m", "venv", "venv"], cwd=target_dir, check=True)

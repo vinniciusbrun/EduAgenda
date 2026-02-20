@@ -33,7 +33,7 @@ class EduAgendaManager:
         if not os.path.exists(self.versions_dir):
             return None
             
-        versions = [d for d in os.listdir(self.versions_dir) if os.path.isdir(os.path.join(self.versions_dir, d)) and d.startswith('v')]
+        versions = [d for d in os.listdir(self.versions_dir) if os.path.isdir(os.path.join(self.versions_dir, d)) and d.startswith('v') and not d.endswith('_FAILED')]
         if not versions:
             return None
             
@@ -67,6 +67,7 @@ class EduAgendaManager:
                 cwd=version_path,
                 env=env
             )
+            self.last_start_time = time.time()
             return True
         except Exception as e:
             logging.error(f"Erro ao iniciar App: {e}")
@@ -83,13 +84,71 @@ class EduAgendaManager:
                 time.sleep(10)
                 continue
                 
+            if not hasattr(self, 'current_version_path'):
+                self.current_version_path = latest_version
+                self.stable_version_path = latest_version
+                
             if self.app_process is None or self.app_process.poll() is not None:
+                uptime = time.time() - getattr(self, 'last_start_time', 0)
+                
+                # --- Lógica de Fallback ---
+                if self.app_process is not None:
+                    if uptime < 15 and self.current_version_path != self.stable_version_path:
+                        logging.error(f"CRASH FATAL DETECTADO: Versão {self.current_version_path} quebrou no boot (uptime: {uptime:.1f}s). Acionando FALLBACK...")
+                        try:
+                            failed_dir = self.current_version_path + "_FAILED"
+                            os.rename(self.current_version_path, failed_dir)
+                            logging.info(f"Isolando versão instável em: {failed_dir}")
+                        except Exception as e:
+                            logging.error(f"Erro ao isolar versão: {e}")
+                            
+                        self.current_version_path = self.stable_version_path
+                        logging.info(f"Efetuando downgrade de emergência para a estável: {self.current_version_path}")
+                    elif uptime >= 15:
+                        # Se sobreviveu mais de 15s, podemos considerar estável para futuros fallbacks
+                        self.stable_version_path = self.current_version_path
+
                 # App não está rodando ou crashou
-                logging.info("Detectada paralisação do App. Reiniciando...")
-                self.start_app(latest_version)
+                logging.info(f"Iniciando App (ou reiniciando após queda): {self.current_version_path}")
+                self.start_app(self.current_version_path)
+            else:
+                # App está rodando, podemos atualizar o stable se sobreviveu
+                uptime = time.time() - getattr(self, 'last_start_time', 0)
+                if uptime >= 15:
+                    self.stable_version_path = self.current_version_path
             
-            # TODO: Lógica de Hot-Swap (Verificar se surgiu uma versão mais nova que a atual)
-            # Por enquanto apenas mantém a mais nova rodando
+            # Hot-Swap Seguro: Verifica se surgiu uma versão mais nova
+            if latest_version and latest_version != self.current_version_path and not latest_version.endswith('_FAILED'):
+                logging.info(f"Nova versão detectada: {latest_version}. Verificando ociosidade do servidor atual...")
+                try:
+                    import urllib.request
+                    import json
+                    req = urllib.request.urlopen("http://127.0.0.1:5000/api/sys/status", timeout=2)
+                    status_data = json.loads(req.read().decode())
+                    idle = status_data.get("idle_seconds", 0)
+                    
+                    if idle > 180:  # 3 minutos ocioso para atualizar silenciosamente
+                        logging.info(f"Servidor ocioso por {int(idle)}s. Aplicando atualização Hot-Swap para {latest_version}...")
+                        self.stable_version_path = self.current_version_path # Guarda a atual como estável antes de trocar
+                        
+                        if self.app_process:
+                            self.app_process.terminate()
+                            try:
+                                self.app_process.wait(timeout=5)
+                            except subprocess.TimeoutExpired:
+                                self.app_process.kill()
+                        
+                        self.current_version_path = latest_version
+                        self.start_app(latest_version)
+                    else:
+                        logging.info(f"Servidor ativo (idle={int(idle)}s). Aguardando 3 minutos de inatividade para atualizar...")
+                except Exception as e:
+                    logging.warning(f"Não foi possível checar o status (Offline ou Inicializando). Tentando forçar update logo. Erro: {e}")
+                    self.stable_version_path = self.current_version_path
+                    if self.app_process:
+                        self.app_process.kill()
+                    self.current_version_path = latest_version
+                    self.start_app(latest_version)
             
             time.sleep(5)
 
