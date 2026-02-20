@@ -5,11 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agenda de Recursos Pedagógicos</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=8.23">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}?v=8.22">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/laptop_fix.css') }}?v=8.27">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/welcome.css') }}?v=8.22">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=10.3">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}?v=1.2">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive.css') }}?v=1.2">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/laptop_fix.css') }}?v=1.2">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/welcome.css') }}?v=1.2">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/settings.css') }}?v=1.2">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap"
@@ -23,6 +23,7 @@
 <body>
     <header>
         <div class="brand-area" id="brandArea">
+            <input type="file" id="logoInput" accept="image/*" style="display: none;">
             <div class="logo-container" id="logoContainer" title="Arraste o logo aqui (Admin)">
                 <img id="schoolLogo" src="" alt="Logo" style="display: none;">
                 <div id="logoPlaceholder" class="logo-placeholder"></div>
@@ -507,10 +508,10 @@
 
     <!-- ApexCharts CDN -->
     <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
-    <script src="{{ url_for('static', filename='js/main.js') }}?v=8.9"></script>
-    <script src="{{ url_for('static', filename='js/debug.js') }}?v=8.27"></script>
-    <script src="{{ url_for('static', filename='js/welcome.js') }}?v=8.7"></script>
-    <script src="{{ url_for('static', filename='js/dashboard.js') }}?v=8.20"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}?v=1.2"></script>
+    <script src="{{ url_for('static', filename='js/debug.js') }}?v=1.2"></script>
+    <script src="{{ url_for('static', filename='js/welcome.js') }}?v=1.2"></script>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}?v=1.2"></script>
     <!-- Modal de Configurações (Settings) -->
     <div id="settingsModal" class="modal-overlay">
         <div class="modal modal-premium">
@@ -529,7 +530,7 @@
                         </button>
                         <button class="tab-btn" onclick="openSettingsTab('sistema')"
                             style="background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); color: #94a3b8; padding: 6px 16px; cursor: pointer; border-radius: 6px; font-weight: 600; transition: all 0.3s; font-size: 0.85rem;">
-                            Sistema e Debug
+                            Sistema e Gestão
                         </button>
                     </div>
                 </div>
@@ -647,18 +648,6 @@
                             <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 15px;">Gerencie acessos e
                                 tokens.</p>
 
-                            <button onclick="exportUsers()"
-                                style="width: 100%; padding: 12px; background: rgba(234, 179, 8, 0.1); color: #eab308; border: 1px solid rgba(234, 179, 8, 0.2); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s; margin-bottom: 10px;">
-                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
-                                    stroke-linecap="round" stroke-linejoin="round" style="width: 16px; height: 16px;">
-                                    <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z">
-                                    </path>
-                                    <polyline points="14 2 14 8 20 8"></polyline>
-                                    <path d="M12 18v-6"></path>
-                                    <path d="m9 15 3 3 3-3"></path>
-                                </svg>
-                                Baixar Credenciais
-                            </button>
 
                             <button onclick="openManagePasswordsModal()"
                                 style="width: 100%; padding: 12px; background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s;">
@@ -752,30 +741,29 @@
                         </div>
                     </div>
 
-                    <!-- COLUNA 3: Debug e Atualizações (EXCLUSIVO ROOT) -->
-                    {% if session.get('role') == 'root' %}
+                    <!-- COLUNA 3: Atualizações (Acesso Admin/Root) -->
                     <div class="settings-column">
                         <div class="settings-section" style="height: 100%;">
                             <h4 style="display: flex; align-items: center; justify-content: space-between;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
                                         stroke-linecap="round" stroke-linejoin="round">
-                                        <rect width="8" height="14" x="8" y="6" rx="4"></rect>
-                                        <path d="m19 7-3 2"></path>
-                                        <path d="m5 7 3 2"></path>
-                                        <path d="m19 19-3-2"></path>
-                                        <path d="m5 19 3-2"></path>
+                                        <polyline points="23 4 23 10 17 10"></polyline>
+                                        <polyline points="1 20 1 14 7 14"></polyline>
+                                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15">
+                                        </path>
                                     </svg>
-                                    Debug e Atualizações
+                                    Software e Versão
                                 </div>
                                 <span id="vLocalLabel"
                                     style="font-size: 0.65rem; background: rgba(56, 189, 248, 0.1); color: #38bdf8; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(56, 189, 248, 0.2);">v1.0.0</span>
                             </h4>
-                            <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 15px;">Desenvolvimento e gestão
-                                de versões.</p>
+                            <p style="font-size: 0.8rem; color: #94a3b8; margin-bottom: 15px;">Mantenha o sistema
+                                orquestrado e seguro.</p>
 
-                            <!-- Botões de CICD -->
+                            <!-- Botões de Atualização -->
                             <div style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+                                {% if session.get('role') == 'root' %}
                                 <button class="primary" onclick="openProjectGithubModal()"
                                     style="width: 100%; padding: 10px; background: rgba(56, 189, 248, 0.1); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
@@ -784,8 +772,9 @@
                                         <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
                                         <polyline points="9 22 9 12 15 12 15 22"></polyline>
                                     </svg>
-                                    Sincronizar (Push Dev)
+                                    Configurar & Sincronizar
                                 </button>
+                                {% endif %}
 
                                 <div style="display: flex; gap: 8px;">
                                     <button onclick="checkUpdates()"
@@ -798,15 +787,6 @@
                                     </button>
                                 </div>
 
-                                <button onclick="openGithubModal('project')"
-                                    style="width: 100%; padding: 10px; background: #24292f; color: #fff; border: 1px solid #24292f; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all 0.2s;">
-                                    <svg height="16" width="16" viewBox="0 0 16 16" fill="currentColor">
-                                        <path
-                                            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z">
-                                        </path>
-                                    </svg>
-                                    Configurar Repositório
-                                </button>
                                 <div id="updateProgressContainer"
                                     style="display: none; height: 4px; background: rgba(255,255,255,0.05); border-radius: 2px; overflow: hidden; margin-top: 5px;">
                                     <div id="updateProgressBar"
@@ -824,7 +804,6 @@
                             </label>
                         </div>
                     </div>
-                    {% endif %}
 
                     <!-- COLUNA 4: Reset (EXCLUSIVO ROOT) -->
                     {% if session.get('role') == 'root' %}

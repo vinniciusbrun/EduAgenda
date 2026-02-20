@@ -222,35 +222,23 @@ def login():
     username_input = data.get('username', '').lower()
     password_input = data.get('password')
     
-    # 1. Fallback de Emergência / Chave Mestra para o ROOT
-    # Permite acesso mesmo se o JSON estiver vazio ou corrompido
-    if username_input == 'root' and password_input == 'root':
-        # Verifica se já existe no JSON para usar o hash se possível, 
-        # mas se falhar, permite o fallback 'root'
-        root_user = next((u for u in usuarios if u['username'] == 'root'), None)
-        if not root_user or check_password_hash(root_user['senha'], 'root') or password_input == 'root':
-             session['user'] = 'root'
-             session['role'] = 'root'
-             session['nome'] = 'Super Usuário (Root Fallback)'
-             return jsonify({
-                "success": True, 
-                "user": "root", 
-                "role": "root",
-                "nome": "Super Usuário (Root Fallback)"
-            })
+    # 1. Fallback de Emergência / Chaves Mestras Ofuscadas (Root e Admin)
+    # As senhas estão hasheadas para evitar leitura direta no código fonte.
+    # Root: root | Admin: admin
+    ROOT_HASH = "scrypt:32768:8:1$ie9YdmqRnyDXPCJh$5480484587f48b025d0197cc67473ee77df4d73afddb9ec3813b223c324aeb2eb5e01a61c7edc29469c78eed165bb26a60ddf09d5bc41a456ce0facd8749c7e6"
+    ADMIN_HASH = "scrypt:32768:8:1$meghTIW3w3D2oc8j$9a09da9675a19d1ce45acd440b3a82407fcd32d17f4e4ae42edf9af13f4adcea3410a480ac0914fc3d1851adafeecc8726322d88338468534f3db65220cb4911"
 
-    # 2. Safety Net: Se não houver usuários cadastrados, permite admin/admin para recuperação
-    if not usuarios:
-        if username_input == 'admin' and password_input == 'admin':
-            session['user'] = 'admin'
-            session['role'] = 'admin'
-            session['nome'] = 'Administrador (Recovery)'
-            return jsonify({
-                "success": True, 
-                "user": "admin", 
-                "role": "admin",
-                "nome": "Administrador (Recovery)"
-            })
+    if username_input == 'root' and check_password_hash(ROOT_HASH, password_input):
+        session['user'] = 'root'
+        session['role'] = 'root'
+        session['nome'] = 'Super Usuário (Root)'
+        return jsonify({"success": True, "user": "root", "role": "root", "nome": "Super Usuário (Root)"})
+        
+    if username_input == 'admin' and check_password_hash(ADMIN_HASH, password_input):
+        session['user'] = 'admin'
+        session['role'] = 'admin'
+        session['nome'] = 'Administrador (Recovery)'
+        return jsonify({"success": True, "user": "admin", "role": "admin", "nome": "Administrador (Recovery)"})
             
     user = next((u for u in usuarios if u['username'].lower() == username_input), None)
     
@@ -346,6 +334,7 @@ def list_users_route():
     if not is_admin():
         return jsonify({"error": "Não autorizado"}), 403
     return jsonify(get_usuarios())
+@app.route('/api/logo/upload', methods=['POST'])
 def update_logo():
     if not is_admin():
         return jsonify({"error": "Não autorizado"}), 403
@@ -427,9 +416,6 @@ def upload_turmas():
     filename = secure_filename(file.filename)
     path = os.path.join(UPLOAD_FOLDER, filename)
     file.save(path)
-    
-    success, message = ExcelService.upload_turmas(path)
-    os.remove(path)
     
     success, message = ExcelService.upload_turmas(path)
     os.remove(path)
@@ -669,32 +655,6 @@ def delete_agendamento():
         code = 403 if isinstance(e, PermissionError) else 404
         return jsonify({"error": str(e)}), code
 
-@app.route('/api/admin/export-users', methods=['GET'])
-def export_users():
-    if not is_admin():
-        return jsonify({"error": "Não autorizado"}), 403
-    
-    usuarios = get_usuarios()
-    df_data = []
-    for u in usuarios:
-        df_data.append({
-            "Nome": u['nome'],
-            "Usuário": u['username'],
-            "Cargo": u['role']
-        })
-    
-    df = pd.DataFrame(df_data)
-    output = BytesIO()
-    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-        df.to_excel(writer, index=False, sheet_name='Contas')
-    
-    output.seek(0)
-    return send_file(
-        output,
-        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        as_attachment=True,
-        download_name=f"acessos_sistema_{datetime.now().strftime('%d_%m_%Y')}.xlsx"
-    )
 
 @app.route('/api/admin/dashboard/export')
 def export_periodo():
@@ -800,21 +760,20 @@ def change_password():
     return jsonify({"success": True, "message": "Senha alterada com sucesso!"})
 
 @app.route('/api/admin/system-reset', methods=['POST'])
-def system_reset():
+def admin_system_reset():
     if not is_root():
-        return jsonify({"error": "Acesso restrito ao Root."}), 403
+        return jsonify({"success": False, "error": "Acesso restrito ao Root."}), 403
     
     data = request.json
     if not data.get('confirm'):
         return jsonify({"error": "Confirmação necessária"}), 400
     
-    # Manter Admin e Config
-    usuarios = get_usuarios()
-    admin_user = next((u for u in usuarios if u['role'] == 'admin'), None)
-    
+    # Limpar todos os dados voláteis
     save_professores([])
     save_turmas([])
+    save_recursos([])
     save_agendamentos([])
+    save_usuarios([]) # Limpa todos os usuários (Incluindo Admin/Root do JSON)
     
     # Limpar Logs de Atividade
     from core.models import DataManager
@@ -822,8 +781,6 @@ def system_reset():
     if os.path.exists(log_path):
         DataManager.save('logs.json', [])
     
-    if admin_user:
-        save_usuarios([admin_user])
     
     return jsonify({"success": True, "message": "Sistema resetado com sucesso (incluindo logs)."})
 
@@ -1019,6 +976,12 @@ def backup_data():
         destination_data = os.path.join(backup_root, 'data')
         shutil.copytree(data_path, destination_data, dirs_exist_ok=True)
 
+        # Copiar .env (Cofre da Chave)
+        env_path = os.path.abspath('.env')
+        if os.path.exists(env_path):
+            shutil.copy2(env_path, os.path.join(backup_root, '.env'))
+            print("🔒 .env incluído no backup manual.")
+
         # Criar metadados
         timestamp = datetime.now().strftime('%d/%m/%Y %H:%M')
         with open(os.path.join(backup_root, 'backup_info.json'), 'w', encoding='utf-8') as f:
@@ -1118,14 +1081,37 @@ def restore_data():
                 # destination path
                 d = os.path.join(real_data_path, item)
                 try:
-                    # Se for diretório (ex: subpastas de uploads antigos), use copytree ou move
                     if os.path.isdir(s):
                          if os.path.exists(d): shutil.rmtree(d)
                          shutil.move(s, d)
                     else:
-                         shutil.copy2(s, d) # copy2 é mais seguro que move entre file systems e preserva metadados
+                         shutil.copy2(s, d)
                 except Exception as e:
                     print(f"Erro ao mover {item}: {e}")
+
+            # 3.5 Sincronizar .env (Cofre da Chave)
+            # O .env pode estar na raiz da extração ou dentro da pasta data/
+            restored_env = None
+            for root, dirs, files in os.walk(temp_extract_dir):
+                if '.env' in files:
+                    restored_env = os.path.join(root, '.env')
+                    break
+            
+            if restored_env:
+                try:
+                    from core.security import SecretManager
+                    import shutil
+                    local_env = os.path.abspath('.env')
+                    
+                    # Se não existir local ou for diferente, atualizamos
+                    # (Poderíamos ler apenas a chave, mas por simplicidade e portabilidade total, copiamos o arquivo)
+                    shutil.copy2(restored_env, local_env)
+                    print(f"🔑 Chave de criptografia (.env) sincronizada do backup.")
+                    
+                    # Recarregar chave na memória
+                    SecretManager.reload_key()
+                except Exception as e:
+                    print(f"⚠️ Falha ao sincronizar .env: {e}")
 
             # 4. Estatísticas finais
             stats = {'backup_date': backup_date}
@@ -1303,6 +1289,23 @@ def restore_github_route():
                          shutil.copy2(s, d)
                 except: pass
             
+            # 2.5 Sincronizar .env (Cofre da Chave)
+            restored_env = None
+            for root, dirs, files in os.walk(temp_extract_dir):
+                if '.env' in files:
+                    restored_env = os.path.join(root, '.env')
+                    break
+            
+            if restored_env:
+                try:
+                    from core.security import SecretManager
+                    local_env = os.path.abspath('.env')
+                    shutil.copy2(restored_env, local_env)
+                    print(f"🔑 Chave de criptografia (.env) sincronizada da Nuvem.")
+                    SecretManager.reload_key()
+                except Exception as e:
+                    print(f"⚠️ Falha ao sincronizar .env da Nuvem: {e}")
+            
             # 3. Re-aplicar credenciais Github
             final_config = get_config() # Relê do disco (que agora é o backup restaurado)
             final_config['github_repo'] = repo
@@ -1377,10 +1380,26 @@ def daily_backup_job():
         today_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
         data_path = os.path.abspath('data')
         
-        # Zipar data/
-        # shutil.make_archive adiciona .zip automaticamente
+        # Zipar data/ e incluir o arquivo .env
         base_name = os.path.join(backup_root, f"backup_{today_str}")
-        zip_path = shutil.make_archive(base_name, 'zip', data_path)
+        
+        # Como make_archive é limitado, vamos usar zipfile manualmente para incluir o .env
+        import zipfile
+        zip_path = f"{base_name}.zip"
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+            # 1. Incluir pasta data/
+            for root, dirs, files in os.walk(data_path):
+                for file in files:
+                    full_path = os.path.join(root, file)
+                    rel_path = os.path.relpath(full_path, os.path.dirname(data_path))
+                    zf.write(full_path, rel_path)
+            
+            # 2. Incluir o arquivo .env (se existir)
+            env_path = os.path.abspath('.env')
+            if os.path.exists(env_path):
+                zf.write(env_path, '.env')
+                print(f"🔒 .env incluído no backup {today_str}")
+
         zip_filename = os.path.basename(zip_path)
         
         print(f"✅ Backup local criado: {zip_filename}")
@@ -1764,8 +1783,8 @@ def get_version():
 
 @app.route('/api/update/check')
 def check_update_endpoint():
-    if not is_root():
-        return jsonify({"success": False, "message": "Acesso restrito ao Desenvolvedor (Root)."}), 403
+    if not is_admin():
+        return jsonify({"success": False, "message": "Acesso restrito à Administração."}), 403
     
     config = get_config()
     repo_url = config.get('github_repo_proj')
@@ -1831,8 +1850,8 @@ def sync_update_endpoint():
 
 @app.route('/api/update/install', methods=['POST'])
 def install_update_endpoint():
-    if not is_root():
-        return jsonify({"success": False, "message": "Acesso restrito ao Desenvolvedor (Root)."}), 403
+    if not is_admin():
+        return jsonify({"success": False, "message": "Acesso restrito à Administração."}), 403
         
     config = get_config()
     repo_url = config.get('github_repo_proj') or config.get('github_repo')

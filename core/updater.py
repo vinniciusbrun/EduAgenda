@@ -3,6 +3,8 @@ import json
 import logging
 import subprocess
 import requests
+import sys
+import shutil
 from datetime import datetime
 
 class Updater:
@@ -170,14 +172,32 @@ class Updater:
     @staticmethod
     def install_update(repo_url, token=None):
         """
-        Runs the atomic update flow.
+        Runs the atomic update flow: Downloads into a NEW version folder.
         """
-        temp_dir = 'temp_update'
-        backup_dir = 'old_version_backup'
-        zip_path = 'update.zip'
-        
         try:
-            # 1. Download ZIP via GitHub API
+            # 1. Verificar Versão Remota para saber o nome da pasta
+            remote_info = Updater.check_remote_version(repo_url, token)
+            if not remote_info or 'version' not in remote_info:
+                return False, "Não foi possível determinar a versão remota para criar a pasta."
+            
+            new_v = remote_info['version']
+            
+            # Subir dois níveis do core/ para a raiz (versions/)
+            # Se orquestrado, estamos em versions/vX.Y.Z/core/updater.py
+            # A raiz do Orquestrador é '../..' em relação à raiz da versão
+            base_project_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(__file__))))
+            versions_dir = os.path.join(base_project_dir, "versions")
+            target_dir = os.path.join(versions_dir, f"v{new_v}")
+            
+            if os.path.exists(target_dir):
+                shutil.rmtree(target_dir) # Limpa se já existir uma tentativa falha
+            
+            os.makedirs(target_dir, exist_ok=True)
+            
+            zip_path = os.path.join(base_project_dir, 'update.zip')
+            temp_extract = os.path.join(base_project_dir, 'temp_extract')
+
+            # 2. Download ZIP
             owner_repo = repo_url.replace("https://github.com/", "").replace(".git", "")
             zip_url = f"https://api.github.com/repos/{owner_repo}/zipball/main"
             
@@ -191,54 +211,41 @@ class Updater:
             with open(zip_path, 'wb') as f:
                 for chunk in response.iter_content(chunk_size=8192): f.write(chunk)
             
-            # 2. Extrair
+            # 3. Extrair para a pasta alvo
+            if os.path.exists(temp_extract): shutil.rmtree(temp_extract)
+            
             import zipfile
-            if os.path.exists(temp_dir): shutil.rmtree(temp_dir)
-            with zipfile.ZipFile(zip_path, 'r') as zip_ref: zip_ref.extractall(temp_dir)
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref: zip_ref.extractall(temp_extract)
             
-            root_folder = os.listdir(temp_dir)[0]
-            inner_dir = os.path.join(temp_dir, root_folder)
+            root_folder = os.listdir(temp_extract)[0]
+            inner_dir = os.path.join(temp_extract, root_folder)
             
-            # 3. Backup
-            if os.path.exists(backup_dir): shutil.rmtree(backup_dir)
-            os.makedirs(backup_dir)
-            
-            ignore_list = [Updater.DATA_DIR, 'venv', temp_dir, backup_dir, '.git', zip_path, '__pycache__', '.env']
-            for item in os.listdir('.'):
-                if item not in ignore_list:
-                    dest = os.path.join(backup_dir, item)
-                    if os.path.isdir(item): shutil.copytree(item, dest, dirs_exist_ok=True)
-                    else: shutil.copy2(item, dest)
-            
-            # 4. Aplicar
+            # Move conteúdo da extração para target_dir
             for item in os.listdir(inner_dir):
-                s = os.path.join(inner_dir, item)
-                d = os.path.join('.', item)
-                if os.path.isdir(s):
-                    if item not in [Updater.DATA_DIR, 'venv', '.git']:
-                        shutil.copytree(s, d, dirs_exist_ok=True)
-                else:
-                    shutil.copy2(s, d)
+                shutil.move(os.path.join(inner_dir, item), target_dir)
             
-            # 5. Verificar Dependências (requirements.txt)
-            req_file = 'requirements.txt'
+            # 4. Criar VENV na nova versão
+            logging.info(f"Criando venv para a nova versão v{new_v}...")
+            subprocess.run([sys.executable, "-m", "venv", "venv"], cwd=target_dir, check=True)
+            
+            # 5. Instalar dependências
+            req_file = os.path.join(target_dir, 'requirements.txt')
             if os.path.exists(req_file):
-                # Verifica se o arquivo mudou comparando com o backup (opcional, aqui faremos direto por segurança)
-                if Updater.is_venv():
-                    logging.info("Alteração detectada r em requirements.txt. Atualizando dependências no venv...")
-                    try:
-                        # No Windows, o executável do pip está em venv/Scripts/pip
-                        pip_path = os.path.join('venv', 'Scripts', 'pip.exe')
-                        if not os.path.exists(pip_path): pip_path = 'pip' # Fallback
-                        subprocess.run([pip_path, 'install', '-r', req_file], check=True)
-                    except Exception as pip_err:
-                        logging.error(f"Erro ao atualizar dependências: {pip_err}")
+                pip_exe = os.path.join(target_dir, "venv", "Scripts", "pip.exe")
+                if not os.path.exists(pip_exe): pip_exe = "pip"
+                
+                logging.info(f"Instalando dependências para v{new_v}...")
+                subprocess.run([pip_exe, "install", "-r", "requirements.txt"], cwd=target_dir, check=True)
 
             # 6. Limpeza
             os.remove(zip_path)
-            shutil.rmtree(temp_dir)
+            shutil.rmtree(temp_extract)
             
-            return True, "Sistema atualizado e dependências verificadas! Iniciando reinício..."
+            return True, f"Atualização v{new_v} preparada com sucesso! O Orquestrador fará a troca em breve."
+            
+        except Exception as e:
+            logging.error(f"Erro crítico na atualização versionada: {e}")
+            return False, f"Erro crítico: {str(e)}"
             
         except Exception as e:
             return False, f"Erro crítico na atualização: {str(e)}"

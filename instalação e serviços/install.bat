@@ -1,103 +1,86 @@
 @echo off
-setlocal
+setlocal enabledelayedexpansion
 
 echo ==========================================
-echo   EduAgenda - Instalador Automatizado
+echo   EduAgenda - Super Instalador v2.0
+echo   Arquitetura: Software com Vida
 echo ==========================================
 
 :: 1. Bootstrap de Dependencias (Python e Git)
 echo [*] Garantindo Python e Git no sistema...
 powershell -ExecutionPolicy Bypass -File "%~dp0bootstrap.ps1"
 if errorlevel 1 goto :bootstrap_fail
-goto :bootstrap_ok
 
-:bootstrap_fail
-echo [!] Erro no Bootstrap. Verifique a saida acima.
-pause
-exit /b
-
-:bootstrap_ok
-:: Recarregar PATH para reconhecer novas instalacoes
+:: Recarregar PATH
 for /f "tokens=*" %%a in ('powershell -command "[System.Environment]::GetEnvironmentVariable('Path','Machine') + ';' + [System.Environment]::GetEnvironmentVariable('Path','User')"') do set "PATH=%%a"
 
-:: 2. Definir Alvo e Preparar Pasta
-set "TARGET=C:\EduAgenda"
-echo [*] Alvo da instalacao: %TARGET%
+:: 2. Definir Estrutura Raiz
+set "ROOT=C:\EduAgenda"
+echo [*] Preparando estrutura em: %ROOT%
 
-if not exist "%TARGET%" mkdir "%TARGET%"
-cd /d "%TARGET%"
+if not exist "%ROOT%" mkdir "%ROOT%"
+if not exist "%ROOT%\versions" mkdir "%ROOT%\versions"
+if not exist "%ROOT%\shared" mkdir "%ROOT%\shared"
+if not exist "%ROOT%\shared\data" mkdir "%ROOT%\shared\data"
+if not exist "%ROOT%\shared\logs" mkdir "%ROOT%\shared\logs"
+if not exist "%ROOT%\manager" mkdir "%ROOT%\manager"
 
-:: 3. Sincronizacao do Repositorio
-echo [*] Sincronizando repositorio do EduAgenda...
-if not exist ".git" goto :git_clone
+:: 3. Sincronizacao da Versao Inicial (v1.2.0)
+set "V_TAG=v1.2.0"
+set "INIT_V_PATH=%ROOT%\versions\%V_TAG%"
 
-echo [i] Repositorio ja existe. Atualizando...
-git fetch --all
-git reset --hard origin/master
-if errorlevel 1 goto :git_main
-goto :git_done
+echo [*] Instalando Versao Base (%V_TAG%)...
+if not exist "%INIT_V_PATH%" (
+    mkdir "%INIT_V_PATH%"
+    cd /d "%INIT_V_PATH%"
+    git clone https://github.com/vinniciusbrun/EduAgenda.git .
+) else (
+    echo [i] Versao %V_TAG% ja existe.
+    cd /d "%INIT_V_PATH%"
+    git fetch --all
+    git reset --hard origin/master
+)
 
-:git_clone
-git clone https://github.com/vinniciusbrun/EduAgenda.git .
-if errorlevel 1 goto :git_error
-goto :git_done
+:: 4. Migrar/Configurar Orquestrador
+echo [*] Configurando Orquestrador...
+copy /y "%INIT_V_PATH%\manager\manager.py" "%ROOT%\manager\manager.py"
+copy /y "%INIT_V_PATH%\run_eduagenda.bat" "%ROOT%\run_eduagenda.bat"
 
-:git_main
-echo [i] Tentando branch alternativa 'main'...
-git reset --hard origin/main
-if errorlevel 1 goto :git_error
-goto :git_done
+:: 5. Setup do Ambiente Virtual (venv) na versao
+cd /d "%INIT_V_PATH%"
+if not exist "venv\Scripts\activate.bat" (
+    echo [*] Criando ambiente virtual para %V_TAG%...
+    python -m venv venv
+)
 
-:git_error
-echo [!] Erro ao sincronizar o repositorio.
-pause
-exit /b
-
-:git_done
-:: 4. Configuracao do Ambiente Virtual (venv)
-if exist "venv\Scripts\activate.bat" goto :venv_ok
-echo [*] Criando ambiente virtual (venv)...
-python -m venv venv
-if errorlevel 1 py -m venv venv
-
-:venv_ok
-if not exist "venv\Scripts\activate.bat" goto :venv_fail
-goto :venv_ready
-
-:venv_fail
-echo [!] Falha ao localizar o ambiente virtual.
-pause
-exit /b
-
-:venv_ready
-:: 5. Instalacao de Dependencias
-echo [*] Instalando dependencias (isso pode demorar)...
+echo [*] Instalando dependencias...
 call "venv\Scripts\activate.bat"
 python -m pip install --upgrade pip
-python -m pip install --only-binary :all: numpy==1.26.4 pandas==2.2.2 openpyxl==3.1.2
 python -m pip install -r requirements.txt
 if errorlevel 1 goto :pip_fail
-goto :pip_ok
+
+:: 6. Inicializacao do Banco de Dados
+echo [*] Inicializando banco de dados compartilhado...
+set "EDU_DATA_PATH=%ROOT%\shared\data"
+python init_db.py
+
+echo.
+echo ==========================================
+echo   Instalacao Concluida! 
+echo   Use o 'run_eduagenda.bat' na raiz de 
+echo   C:\EduAgenda para iniciar o sistema.
+echo ==========================================
+echo.
+
+pause
+exit /b
+
+:bootstrap_fail
+echo [!] Erro no Bootstrap.
+pause
+exit /b
 
 :pip_fail
 echo [!] Erro ao instalar dependencias.
 pause
 exit /b
-
-:pip_ok
-:: 6. Inicializacao do Banco de Dados (Root/Admin)
-echo [*] Inicializando usuarios administrativos...
-python init_db.py
-
-echo.
-echo ==========================================
-echo   Instalacao Concluida! Iniciando App...
-echo ==========================================
-echo.
-
-:: 7. Iniciar Servidor
-start python app.py
-
-echo [OK] Servidor iniciado. Mantenha essa janela aberta para que o servidor continue funcionando.
-timeout /t 5
-exit

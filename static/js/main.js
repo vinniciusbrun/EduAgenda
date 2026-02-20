@@ -524,8 +524,11 @@ async function uploadFiles(type) {
 
             // Recarregar a lista específica
             if (type === 'professores') loadSettingsProfessors();
-            else if (type === 'turmas') loadSettingsTurmas();
-            else if (type === 'recursos') openSettingsModal(); // Recarrega tudo pois recursos afetam menus
+            else if (type === 'turmas') {
+                loadSettingsTurmas();
+                onTurnoChange(); // Recarrega também o seletor principal da agenda
+            }
+            else if (type === 'recursos') openSettingsModal();
         } else {
             showToast(result.message, 'error');
         }
@@ -534,10 +537,6 @@ async function uploadFiles(type) {
     }
 }
 
-async function exportUsers() {
-    if (!confirm("Deseja baixar o arquivo Excel com as credenciais de acesso de todos os professores?")) return;
-    window.location.href = '/api/admin/export-users';
-}
 
 async function resetSystem() {
     const confirm1 = confirm("⚠️ ATENÇÃO: Isso irá apagar TODOS os agendamentos, professores e turmas!\n\nDeseja continuar?");
@@ -588,6 +587,67 @@ function setupBrandListeners() {
     if (cl) cl.onblur = async () => {
         await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ coordenador_pedagogico: cl.innerText.trim() }) });
     };
+
+    // Lógica de Logo (Drag and Drop + Clique)
+    const logoContainer = document.getElementById('logoContainer');
+    const logoInput = document.getElementById('logoInput');
+
+    if (logoContainer && logoInput) {
+        logoContainer.onclick = () => logoInput.click();
+        logoInput.onchange = (e) => {
+            if (e.target.files.length > 0) uploadLogo(e.target.files[0]);
+        };
+
+        logoContainer.ondragover = (e) => {
+            e.preventDefault();
+            logoContainer.classList.add('dragging');
+        };
+        logoContainer.ondragleave = () => logoContainer.classList.remove('dragging');
+        logoContainer.ondrop = (e) => {
+            e.preventDefault();
+            logoContainer.classList.remove('dragging');
+            if (e.dataTransfer.files.length > 0) uploadLogo(e.dataTransfer.files[0]);
+        };
+    }
+}
+
+async function uploadLogo(file) {
+    if (!file.type.startsWith('image/')) {
+        showToast('Por favor, selecione uma imagem válida.', 'error');
+        return;
+    }
+
+    const fd = new FormData();
+    fd.append('file', file);
+
+    const loadingToast = showToast('Subindo novo logo...', 'info');
+
+    try {
+        const res = await fetch('/api/logo/upload', {
+            method: 'POST',
+            body: fd
+        });
+        const result = await res.json();
+
+        if (result.success) {
+            showToast('Logo atualizado com sucesso!', 'success');
+            // Atualiza as imagens no header sem recarregar
+            const images = ['schoolLogo', 'modalSchoolLogo'];
+            images.forEach(id => {
+                const img = document.getElementById(id);
+                if (img) {
+                    img.src = result.logo_url;
+                    img.style.display = 'block';
+                }
+            });
+            const ph = document.getElementById('logoPlaceholder');
+            if (ph) ph.style.display = 'none';
+        } else {
+            showToast(result.error || 'Erro ao subir logo.', 'error');
+        }
+    } catch (e) {
+        showToast('Erro de conexão ao subir logo.', 'error');
+    }
 }
 
 // Exposto globalmente para debug.js
@@ -642,28 +702,103 @@ function updateHeaderDates(s) {
 
 // --- Lógica do Modal de Configurações ---
 
+async function loadSettingsResources() {
+    const listContainer = document.getElementById('settingsResourcesList');
+    if (!listContainer) return;
+    try {
+        const resRec = await fetch('/api/recursos');
+        const recursos = await resRec.json();
+        listContainer.innerHTML = '';
+        recursos.forEach(r => {
+            const item = document.createElement('div');
+            item.className = 'settings-section';
+            item.style.padding = '10px 0';
+            item.style.marginBottom = '10px';
+            item.innerHTML = `
+                <label class="toggle-switch">
+                    <div class="toggle-label">
+                        <span>${r.nome}</span>
+                        <small>${r.tipo.toUpperCase()}</small>
+                    </div>
+                    <input type="checkbox" class="resource-toggle" data-id="${r.id}" data-nome="${r.nome}" data-tipo="${r.tipo}" ${r.active !== false ? 'checked' : ''}>
+                </label>
+            `;
+            listContainer.appendChild(item);
+        });
+    } catch (e) { console.error("Erro recursos settings:", e); }
+}
+
+async function loadSettingsProfessors() {
+    const profListContainer = document.getElementById('settingsProfessorsList');
+    if (!profListContainer) return;
+    try {
+        const resUsers = await fetch('/api/users');
+        const users = await resUsers.json();
+        profListContainer.innerHTML = '';
+        const professors = users.filter(u => u.role === 'professor').sort((a, b) => a.nome.localeCompare(b.nome));
+        professors.forEach(p => {
+            const item = document.createElement('div');
+            item.className = 'settings-section';
+            item.style.padding = '10px 0';
+            item.style.marginBottom = '10px';
+            item.innerHTML = `
+                <label class="toggle-switch">
+                    <div class="toggle-label">
+                        <span>${p.nome}</span>
+                        <small>${p.username}</small>
+                    </div>
+                    <input type="checkbox" class="professor-toggle" data-username="${p.username}" ${p.active !== false ? 'checked' : ''}>
+                </label>
+            `;
+            profListContainer.appendChild(item);
+        });
+    } catch (e) { console.error("Erro prof settings:", e); }
+}
+
+async function loadSettingsTurmas() {
+    const turmasListContainer = document.getElementById('settingsTurmasList');
+    if (!turmasListContainer) return;
+    try {
+        const resTurmas = await fetch('/api/turmas');
+        const turmas = await resTurmas.json();
+        turmasListContainer.innerHTML = '';
+        const sortedTurmas = turmas.sort((a, b) => a.turma.localeCompare(b.turma));
+        sortedTurmas.forEach(t => {
+            const item = document.createElement('div');
+            item.className = 'settings-section';
+            item.style.padding = '10px 0';
+            item.style.marginBottom = '10px';
+            item.innerHTML = `
+                <label class="toggle-switch">
+                    <div class="toggle-label">
+                        <span>${t.turma}</span>
+                        <small>${t.turno}</small>
+                    </div>
+                    <input type="checkbox" class="turma-toggle" data-turma="${t.turma}" data-turno="${t.turno}" ${t.active !== false ? 'checked' : ''}>
+                </label>
+            `;
+            turmasListContainer.appendChild(item);
+        });
+    } catch (e) { console.error("Erro turmas settings:", e); }
+}
+
 async function openSettingsModal() {
     console.log("Debug: openSettingsModal called");
     try {
-        // 1. Carregar Configurações Gerais
         const resConfig = await fetch('/api/config');
         const config = await resConfig.json();
 
-        // Nome da Escola e Logo URL
         const settingsSchoolName = document.getElementById('settingsSchoolName');
         if (settingsSchoolName) settingsSchoolName.value = config.nome_escola || '';
         const settingsLogoUrl = document.getElementById('settingsLogoUrl');
         if (settingsLogoUrl) settingsLogoUrl.value = config.logo_url || '';
 
-        // Debug Mode
         const elDebug = document.getElementById('settingsDebugToggle');
         if (elDebug) elDebug.checked = config.debug_mode !== false;
 
-        // Backup Time
         const backupTime = document.getElementById('backupTime');
         if (backupTime) backupTime.value = config.backup_time || '00:00';
 
-        // Backup Status
         const lastBackupEl = document.getElementById('lastBackupStatus');
         if (lastBackupEl) {
             if (config.last_backup_at) {
@@ -674,89 +809,9 @@ async function openSettingsModal() {
             }
         }
 
-        // 2. Carregar Lista de Recursos para Gerenciamento
-        const resRec = await fetch('/api/recursos');
-        const recursos = await resRec.json();
-        const listContainer = document.getElementById('settingsResourcesList');
-
-        if (listContainer) {
-            listContainer.innerHTML = '';
-            recursos.forEach(r => {
-                const item = document.createElement('div');
-                item.className = 'settings-section'; // Reuse styling for spacing
-                item.style.padding = '10px 0';
-                item.style.marginBottom = '10px';
-
-                item.innerHTML = `
-                    <label class="toggle-switch">
-                        <div class="toggle-label">
-                            <span>${r.nome}</span>
-                            <small>${r.tipo.toUpperCase()}</small>
-                        </div>
-                        <input type="checkbox" class="resource-toggle" data-id="${r.id}" data-nome="${r.nome}" data-tipo="${r.tipo}" ${r.active !== false ? 'checked' : ''}>
-                    </label>
-                `;
-                listContainer.appendChild(item);
-            });
-        }
-
-        // 3. Carregar Lista de Professores
-        const resUsers = await fetch('/api/users');
-        const users = await resUsers.json();
-        const profListContainer = document.getElementById('settingsProfessorsList');
-
-        if (profListContainer) {
-            profListContainer.innerHTML = '';
-            // Filtrar apenas professores e ordenar por nome
-            const professors = users.filter(u => u.role === 'professor').sort((a, b) => a.nome.localeCompare(b.nome));
-
-            professors.forEach(p => {
-                const item = document.createElement('div');
-                item.className = 'settings-section';
-                item.style.padding = '10px 0';
-                item.style.marginBottom = '10px';
-
-                item.innerHTML = `
-                    <label class="toggle-switch">
-                        <div class="toggle-label">
-                            <span>${p.nome}</span>
-                            <small>${p.username}</small>
-                        </div>
-                        <input type="checkbox" class="professor-toggle" data-username="${p.username}" ${p.active !== false ? 'checked' : ''}>
-                    </label>
-                `;
-                profListContainer.appendChild(item);
-            });
-        }
-
-        // 4. Carregar Lista de Turmas
-        const resTurmas = await fetch('/api/turmas'); // Traz todas
-        const turmas = await resTurmas.json();
-        const turmasListContainer = document.getElementById('settingsTurmasList');
-
-        if (turmasListContainer) {
-            turmasListContainer.innerHTML = '';
-            // Ordenar por nome
-            const sortedTurmas = turmas.sort((a, b) => a.turma.localeCompare(b.turma));
-
-            sortedTurmas.forEach(t => {
-                const item = document.createElement('div');
-                item.className = 'settings-section';
-                item.style.padding = '10px 0';
-                item.style.marginBottom = '10px';
-
-                item.innerHTML = `
-                    <label class="toggle-switch">
-                        <div class="toggle-label">
-                            <span>${t.turma}</span>
-                            <small>${t.turno}</small>
-                        </div>
-                        <input type="checkbox" class="turma-toggle" data-turma="${t.turma}" data-turno="${t.turno}" ${t.active !== false ? 'checked' : ''}>
-                    </label>
-                `;
-                turmasListContainer.appendChild(item);
-            });
-        }
+        await loadSettingsResources();
+        await loadSettingsProfessors();
+        await loadSettingsTurmas();
 
         openModal('settingsModal');
     } catch (e) {

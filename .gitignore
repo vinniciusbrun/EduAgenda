@@ -6,6 +6,9 @@ __pycache__/
 .DS_Store
 temp_uploads/
 .backups/
+versions/
+shared/
+manager.log
 
 # Excel Files
 *.xlsx

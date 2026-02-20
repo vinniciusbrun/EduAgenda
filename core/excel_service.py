@@ -5,7 +5,7 @@ class ExcelService:
     @staticmethod
     def upload_professores(file_path):
         try:
-            df = pd.read_excel(file_path)
+            df = pd.read_excel(file_path, engine='openpyxl')
             # Normalizar nomes de colunas para facilitar detecção
             df.columns = [str(c).strip().lower() for c in df.columns]
             
@@ -35,12 +35,14 @@ class ExcelService:
     @staticmethod
     def upload_turmas(file_path):
         try:
-            df = pd.read_excel(file_path)
+            df = pd.read_excel(file_path, engine='openpyxl')
             # Normalizar colunas
             df.columns = [str(c).strip().lower() for c in df.columns]
+            print(f"DEBUG: Colunas detectadas em Turmas: {list(df.columns)}")
             
             required = ['turma', 'turno']
             if not all(col in df.columns for col in required):
+                print(f"DEBUG: Falha na validação de colunas Turmas. Faltando algo em {required}")
                 return False, f"A planilha deve conter as colunas: {', '.join(required)}"
             
             # Limpar dados
@@ -56,15 +58,20 @@ class ExcelService:
             
             from .models import update_turmas
             update_turmas(merge_turmas)
-            return True, f"{len(novas_turmas)} turmas verificadas/adicionadas."
+            print(f"DEBUG: Upload Turmas - {len(novas_turmas)} processadas.")
             return True, f"{len(novas_turmas)} turmas verificadas/adicionadas."
         except Exception as e:
             return False, f"Erro ao processar turmas: {str(e)}"
 
     @staticmethod
     def upload_recursos(file_path):
+        """
+        Lê planilha de recursos e realiza o merge atômico com os atuais,
+        respeitando o limite da versão Beta.
+        """
         try:
-            df = pd.read_excel(file_path)
+            # 1. Carregar Dados do Excel
+            df = pd.read_excel(file_path, engine='openpyxl')
             df.columns = [str(c).strip().lower() for c in df.columns]
             
             # Validação de Colunas
@@ -72,47 +79,55 @@ class ExcelService:
             if not all(col in df.columns for col in required):
                 return False, f"A planilha deve conter as colunas: {', '.join(required)}"
             
-            # Limpeza
+            # Limpeza e Preparação
             df['nome'] = df['nome'].astype(str).str.strip()
-            df['tipo'] = df['tipo'].astype(str).str.strip().upper()
-            
-            novos_recursos = df[required].dropna().to_dict('records')
-            
-            # Validação BETA (Max 8 Recursos)
+            df['tipo'] = df['tipo'].astype(str).str.strip().str.upper()
+            novos_dados = df[required].dropna().to_dict('records')
+
+            if not novos_dados:
+                return False, "Nenhum recurso válido encontrado na planilha."
+
             from .models import get_recursos, save_recursos
+            import uuid
+
+            # 2. Operação Atômica de Merge
+            # Nota: save_recursos agora usa DataManager.update internamente,
+            # então precisamos carregar primeiro para validar regras de negócio
+            # antes de disparar o update, ou fazer tudo dentro do callback.
+            
+            # Vamos usar uma abordagem de "preparação + salvamento atômico"
             recursos_atuais = get_recursos()
-            
-            # Merge lógico (evitar duplicados por ID/Nome)
-            # Como recursos não têm ID fixo na planilha, vamos criar IDs baseados no nome se não existirem
-            # Mas primeiro, checar o limite total
-            
-            # ids existentes
-            ids_existentes = {r['id'] for r in recursos_atuais}
             nomes_existentes = {r['nome'].lower() for r in recursos_atuais}
             
             adicionados = 0
-            import uuid
-            
-            for r in novos_recursos:
+            recursos_para_adicionar = []
+
+            for r in novos_dados:
                 if r['nome'].lower() in nomes_existentes:
-                    continue # Já existe
+                    continue
                 
-                # Checa limite antes de adicionar
-                if len(recursos_atuais) >= 8:
-                    return False, f"Limite da versão Beta atingido (Máx 8 Recursos). {adicionados} recursos foram adicionados antes da trava."
+                if (len(recursos_atuais) + adicionados) >= 8:
+                    break
                 
                 novo_id = str(uuid.uuid4())[:8]
-                recursos_atuais.append({
+                recursos_para_adicionar.append({
                     "id": novo_id,
                     "nome": r['nome'],
                     "tipo": r['tipo'],
                     "ativo": True
                 })
-                nomes_existentes.add(r['nome'].lower())
                 adicionados += 1
-            
-            save_recursos(recursos_atuais)
-            return True, f"{adicionados} recursos adicionados com sucesso."
+
+            if adicionados > 0:
+                # Atualiza a lista completa e salva atomicamente
+                recursos_finais = recursos_atuais + recursos_para_adicionar
+                save_recursos(recursos_finais)
+                return True, f"{adicionados} recursos novos adicionados com sucesso."
+            else:
+                return True, "Nenhum recurso novo para adicionar (já existentes ou limite atingido)."
 
         except Exception as e:
+            print(f"Erro em upload_recursos: {e}")
+            import traceback
+            traceback.print_exc()
             return False, f"Erro ao processar recursos: {str(e)}"
