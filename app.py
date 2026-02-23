@@ -1483,50 +1483,73 @@ def daily_backup_job():
                 clean_repo = github_repo.replace("https://", "").replace("http://", "")
                 auth_url = f"https://{github_user}:{github_token}@{clean_repo}"
                 
-                def run_git(args):
-                    return subprocess.run(["git"] + args, cwd=backup_root, capture_output=True, text=True, check=True)
+                # Sem check=True: captura stdout/stderr para diagnóstico real
+                def run_git(args, raise_on_fail=False):
+                    r = subprocess.run(
+                        ["git"] + args, cwd=backup_root,
+                        capture_output=True, text=True
+                    )
+                    if raise_on_fail and r.returncode != 0:
+                        raise RuntimeError(r.stderr.strip() or r.stdout.strip() or f"git {args[0]} falhou (código {r.returncode})")
+                    return r
 
                 if not os.path.exists(os.path.join(backup_root, '.git')):
                     run_git(["init"])
-                    try: run_git(["branch", "-M", "main"])
-                    except: pass
+                    run_git(["branch", "-M", "main"])
                 
-                # CONFIGURAR IDENTIDADE (Fix: Author identity unknown)
-                try:
-                    run_git(["config", "user.name", "EduAgenda Backup"])
-                    run_git(["config", "user.email", "backup@eduagenda.local"])
-                except: pass
+                # Identidade local
+                run_git(["config", "user.name", "EduAgenda Backup"])
+                run_git(["config", "user.email", "backup@eduagenda.local"])
 
+                # Remote com token
                 remotes = run_git(["remote"]).stdout
                 if "origin" in remotes:
                     run_git(["remote", "set-url", "origin", auth_url])
                 else:
                     run_git(["remote", "add", "origin", auth_url])
-                
+
                 # Pruning (90 dias)
                 cutoff = datetime.now() - timedelta(days=90)
                 for f in os.listdir(backup_root):
                     if f.endswith('.zip') and f.startswith('backup_'):
                         try:
-                            # Tentar extrair data do nome: backup_2026-02-23_141824.zip
-                            d_str = f.split('_')[1] # 2026-02-23
+                            d_str = f.split('_')[1]
                             f_date = datetime.strptime(d_str, "%Y-%m-%d")
                             if f_date < cutoff:
                                 os.remove(os.path.join(backup_root, f))
                         except: pass
 
                 run_git(["add", "."])
-                if run_git(["status", "--porcelain"]).stdout:
+                status_result = run_git(["status", "--porcelain"])
+                if status_result.stdout.strip():
                     run_git(["commit", "-m", f"Backup Auto: {today_str}"])
-                    try: run_git(["push", "-u", "origin", "main"])
-                    except: run_git(["push", "-u", "origin", "master"])
-                    status_msg = "Sucesso (Nuvem ☁️)"
+
+                    # Garante URL autenticada imediatamente antes do push
+                    run_git(["remote", "set-url", "origin", auth_url])
+
+                    # Tenta pull --rebase para evitar divergência antes de push
+                    run_git(["pull", "--rebase", "origin", "main"])
+
+                    push = run_git(["push", "-u", "origin", "main"])
+                    if push.returncode != 0:
+                        # Tenta branch master como fallback
+                        push = run_git(["push", "-u", "origin", "master"])
+                    
+                    if push.returncode == 0:
+                        status_msg = "Sucesso (Nuvem ☁️)"
+                        print(f"✅ Push nuvem OK: backup_{today_str}.zip")
+                    else:
+                        err_detail = (push.stderr.strip().splitlines()[-1]
+                                      if push.stderr.strip() else "erro desconhecido")
+                        print(f"❌ Push falhou: {push.stderr.strip()}")
+                        status_msg = f"Aviso (Erro Push: {err_detail[:40]})"
+                        tipo_log = "alerta"
                 else:
                     status_msg = "Sucesso (Sem alt. nuvem)"
 
             except Exception as e:
                 print(f"⚠️ Erro Git Satélite: {e}")
-                status_msg = f"Aviso (Erro Nuvem: {str(e)[:30]})"
+                status_msg = f"Aviso (Erro Nuvem: {str(e)[:40]})"
                 tipo_log = "alerta"
         else:
             status_msg = "Sucesso (Apenas Local)"
