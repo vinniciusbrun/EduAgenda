@@ -17,7 +17,7 @@ if not DOTENV_PATH:
     else:
         DOTENV_PATH = os.path.join(version_root, ".env")
 
-load_dotenv(DOTENV_PATH)
+load_dotenv(DOTENV_PATH, override=True)
 
 class SecretManager:
     _fernet = None
@@ -26,7 +26,7 @@ class SecretManager:
     def _get_fernet(cls):
         if cls._fernet is None:
             # Pega a chave do FLASK_SECRET_KEY ou usa um fallback (não recomendado para produção)
-            raw_key = os.getenv('FLASK_SECRET_KEY', 'antigravity-default-security-key-2026')
+            raw_key = os.getenv('FLASK_SECRET_KEY', 'antigravity-default-security-key-2026').strip()
             
             # Deriva uma chave de 32 bytes compatível com Fernet usando SHA-256
             key_32 = hashlib.sha256(raw_key.encode()).digest()

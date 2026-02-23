@@ -1,14 +1,24 @@
-import json
 import os
+import json
 import portalocker
-from .security import SecretManager
-
+import shutil
+from datetime import datetime, timedelta
+from core.security import SecretManager
 # Prioriza variável de ambiente (Shared Data) vinda do Orquestrador
 DATA_DIR = os.environ.get('EDU_DATA_PATH')
 
 if not DATA_DIR:
     # Fallback para o layout de pasta único (desenvolvimento)
     DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+
+# Exportar para outros módulos
+__all__ = [
+    'DATA_DIR', 'get_professores', 'save_professores', 'get_turmas', 'save_turmas',
+    'get_agendamentos', 'save_agendamentos', 'update_agendamentos', 'get_recursos',
+    'save_recursos', 'get_usuarios', 'save_usuarios', 'update_usuarios',
+    'get_config', 'save_config', 'update_config', 'get_logs', 'update_logs',
+    'get_full_database_decrypted', 'restore_full_database_encrypted'
+]
 
 class DataManager:
     @staticmethod
@@ -401,3 +411,45 @@ def get_logs():
 
 def update_logs(callback):
     return DataManager.update('logs.json', callback)
+
+
+def get_full_database_decrypted():
+    """
+    Retorna todo o conteúdo do banco de dados em formato limpo (descriptografado).
+    Ideal para criação de backups portáteis.
+    """
+    return {
+        "professores": get_professores(),
+        "turmas": get_turmas(),
+        "recursos": get_recursos(),
+        "usuarios": get_usuarios(),
+        "agendamentos": get_agendamentos(),
+        "config": get_config(),
+        "logs": get_logs()
+    }
+
+
+def restore_full_database_encrypted(data):
+    """
+    Recebe um dicionário com dados descriptografados e os salva no disco
+    aplicando a criptografia local.
+    """
+    try:
+        if "professores" in data:
+            save_professores(data["professores"])
+        if "turmas" in data:
+            save_turmas(data["turmas"])
+        if "recursos" in data:
+            save_recursos(data["recursos"])
+        if "usuarios" in data:
+            save_usuarios(data["usuarios"])
+        if "agendamentos" in data:
+            save_agendamentos(data["agendamentos"])
+        if "config" in data:
+            save_config(data["config"])
+        if "logs" in data:
+            update_logs(lambda _: data["logs"])
+        return True
+    except Exception as e:
+        print(f"Erro ao restaurar banco criptografado: {e}")
+        return False

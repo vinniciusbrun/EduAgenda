@@ -16,7 +16,8 @@ from core.models import (
     get_professores, get_turmas, get_agendamentos, save_agendamentos,
     save_professores, save_turmas,
     get_recursos, save_recursos, get_usuarios, save_usuarios, update_usuarios,
-    get_config, save_config, update_agendamentos, get_logs, update_logs
+    get_config, save_config, update_config, update_agendamentos, get_logs, update_logs,
+    get_full_database_decrypted, restore_full_database_encrypted, DATA_DIR
 )
 import uuid
 import pandas as pd
@@ -529,14 +530,30 @@ def list_agendamentos():
             # Só aparece na semana exata de início
             if a['semana_inicio'] == semana_view:
                 filtered.append(a)
-        elif freq == 'semanal':
-            # Aparece em todas as semanas a partir do início
-            filtered.append(a)
-        elif freq == 'quinzenal':
-            # Aparece a cada duas semanas
-            diff_days = (view_date - a_start_date).days
-            if (diff_days // 7) % 2 == 0:
+        else:
+            # Lógica para semanal/quinzenal
+            
+            # 1. Verificar se a semana_view está nas exceções (exclusão pontual)
+            if 'excecoes' in a and semana_view in a.get('excecoes', []):
+                continue
+                
+            # 2. Verificar se a semana_view já passou do limite de cancelamento (exclusão daqui em diante)
+            if 'semana_fim' in a:
+                try:
+                    cancel_date = datetime.strptime(a['semana_fim'], '%Y-%m-%d')
+                    if view_date >= cancel_date:
+                        continue
+                except:
+                    pass
+            
+            if freq == 'semanal':
+                # Aparece em todas as semanas a partir do início
                 filtered.append(a)
+            elif freq == 'quinzenal':
+                # Aparece a cada duas semanas
+                diff_days = (view_date - a_start_date).days
+                if (diff_days // 7) % 2 == 0:
+                    filtered.append(a)
                 
     return jsonify(filtered)
 
@@ -704,6 +721,30 @@ def delete_agendamento():
                     raise PermissionError("Apenas o ocupante, criador ou admin pode remover este horário")
                 
                 print(f"🗑️ [DELETE SUCCESS] ID: {a.get('id')} por {user}")
+                
+                modo_exclusao = data.get('modo_exclusao', 'tudo')
+                semana_fim = data.get('semana_fim')
+                
+                # Se for tudo ou diária, apenas não adicionamos o agendamento em new_agendamentos
+                if modo_exclusao == 'tudo' or a.get('frequencia') == 'diaria':
+                    pass
+                elif modo_exclusao == 'unico':
+                    sem_req = data.get('semana_requisicao')
+                    if sem_req:
+                        if 'excecoes' not in a:
+                            a['excecoes'] = []
+                        if sem_req not in a['excecoes']:
+                            a['excecoes'].append(sem_req)
+                    new_agendamentos.append(a)
+                elif modo_exclusao == 'futuro':
+                    sem_req = data.get('semana_requisicao')
+                    if sem_req:
+                        # Se já havia um semana_fim, respeitamos o mais antigo.
+                        # Do contrário, atribuimos a nova semana onde não vai mais ter o evento.
+                        if 'semana_fim' not in a or datetime.strptime(sem_req, '%Y-%m-%d') < datetime.strptime(a['semana_fim'], '%Y-%m-%d'):
+                            a['semana_fim'] = sem_req
+                    new_agendamentos.append(a)
+
                 found = True
                 continue
             new_agendamentos.append(a)
@@ -1034,25 +1075,33 @@ def backup_data():
         # Criar diretório temporário
         temp_dir = tempfile.mkdtemp()
         
-        # Estrutura do backup: temp_dir/data/... e temp_dir/backup_info.json
+        # Estrutura do backup: temp_dir/backup_content/data/... e temp_dir/backup_content/backup_info.json
         backup_root = os.path.join(temp_dir, 'backup_content')
-        os.makedirs(backup_root)
+        data_dir = os.path.join(backup_root, 'data')
+        os.makedirs(data_dir)
         
-        # Copiar dados
-        data_path = os.path.abspath('data')
-        destination_data = os.path.join(backup_root, 'data')
-        shutil.copytree(data_path, destination_data, dirs_exist_ok=True)
-
-        # Copiar .env (Cofre da Chave)
-        env_path = os.path.abspath('.env')
-        if os.path.exists(env_path):
-            shutil.copy2(env_path, os.path.join(backup_root, '.env'))
-            print("🔒 .env incluído no backup manual.")
+        # 1. Obter dados DESCRIPTOGRAFADOS
+        db_data = get_full_database_decrypted()
+        
+        # 2. Salvar individualmente como JSONs legíveis no backup
+        for name, content in db_data.items():
+            file_name = f"{name}.json"
+            with open(os.path.join(data_dir, file_name), 'w', encoding='utf-8') as f:
+                json.dump(content, f, indent=4, ensure_ascii=False)
+        
+        # 3. Adicionar arquivos extras se existirem (como logos, se estiverem em data/)
+        # Mas aqui focamos nos JSONs. Se o user quiser logos, shutil.copytree seria melhor, 
+        # mas logos não são criptografados então podemos copiar se existirem fisicamente.
+        if os.path.exists(DATA_DIR):
+            for item in os.listdir(DATA_DIR):
+                item_path = os.path.join(DATA_DIR, item)
+                if os.path.isfile(item_path) and not item.endswith('.json'):
+                    shutil.copy2(item_path, os.path.join(data_dir, item))
 
         # Criar metadados
         timestamp = datetime.now().strftime('%d/%m/%Y %H:%M')
         with open(os.path.join(backup_root, 'backup_info.json'), 'w', encoding='utf-8') as f:
-            json.dump({'created_at': timestamp, 'version': '1.0'}, f)
+            json.dump({'created_at': timestamp, 'version': '2.0', 'type': 'decrypted'}, f)
 
         # Criar ZIP
         archive_name = f"backup_eduagenda_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
@@ -1078,134 +1127,94 @@ def restore_data():
     if file.filename == '':
         return jsonify({"success": False, "message": "Nenhum arquivo selecionado"}), 400
 
-    if not file.filename.endswith('.zip'):
-        return jsonify({"success": False, "message": "Formato inválido. Envie um arquivo .zip"}), 400
-
     try:
         import zipfile
         import shutil
-        import json
         import tempfile
         from werkzeug.utils import secure_filename
 
-        # Salvar arquivo temporariamente
-        if not os.path.exists('temp_uploads'):
-            os.makedirs('temp_uploads')
-        temp_zip = os.path.join('temp_uploads', secure_filename(file.filename))
+        # Salvar temporariamente
+        temp_dir = tempfile.mkdtemp()
+        temp_zip = os.path.join(temp_dir, secure_filename(file.filename))
         file.save(temp_zip)
 
-        # 1. Extrair e verificar ANTES de apagar qualquer coisa
-        temp_extract_dir = tempfile.mkdtemp()
-        try:
-            with zipfile.ZipFile(temp_zip, 'r') as zip_ref:
-                zip_ref.extractall(temp_extract_dir)
-            
-            # Localizar dados
-            required_files = ['professores.json', 'turmas.json', 'agendamentos.json', 'usuarios.json']
-            found_data_path = None
-            for root, dirs, files in os.walk(temp_extract_dir):
-                if all(f in files for f in required_files):
-                    found_data_path = root
-                    break
-            
-            if not found_data_path:
-                raise Exception("Backup inválido: arquivos essenciais não encontrados.")
-
-            # Ler metadados (para estatísticas e validação extra)
-            backup_date = "Desconhecida (Backup antigo)"
-            possible_info_paths = [
-                os.path.join(temp_extract_dir, 'backup_info.json'),
-                os.path.join(os.path.dirname(found_data_path), 'backup_info.json')
-            ]
-            for info_path in possible_info_paths:
-                if os.path.exists(info_path):
-                    try:
-                        with open(info_path, 'r', encoding='utf-8') as f:
-                            info = json.load(f)
-                            backup_date = info.get('created_at', backup_date)
-                    except: pass
-            
-            # 2. Se chegou aqui, o backup é bom. Agora sim limpamos os dados atuais.
-            real_data_path = os.path.abspath('data')
-            if not os.path.exists(real_data_path):
-                os.makedirs(real_data_path)
-
-            for filename in os.listdir(real_data_path):
-                file_path = os.path.join(real_data_path, filename)
-                if filename == '.gitkeep': continue
-                try:
-                    if os.path.isfile(file_path) or os.path.islink(file_path):
-                        os.unlink(file_path)
-                    elif os.path.isdir(file_path):
-                        shutil.rmtree(file_path)
-                except Exception as e:
-                    print(f"Aviso: Falha ao limpar {filename}: {e}")
-
-            # 3. Mover arquivos novos
-            for item in os.listdir(found_data_path):
-                # source path
-                s = os.path.join(found_data_path, item)
-                # destination path
-                d = os.path.join(real_data_path, item)
-                try:
-                    if os.path.isdir(s):
-                         if os.path.exists(d): shutil.rmtree(d)
-                         shutil.move(s, d)
-                    else:
-                         shutil.copy2(s, d)
-                except Exception as e:
-                    print(f"Erro ao mover {item}: {e}")
-
-            # 3.5 Sincronizar .env (Cofre da Chave)
-            # O .env pode estar na raiz da extração ou dentro da pasta data/
-            restored_env = None
-            for root, dirs, files in os.walk(temp_extract_dir):
-                if '.env' in files:
-                    restored_env = os.path.join(root, '.env')
-                    break
-            
-            if restored_env:
-                try:
-                    from core.security import SecretManager
-                    import shutil
-                    local_env = os.path.abspath('.env')
-                    
-                    # Se não existir local ou for diferente, atualizamos
-                    # (Poderíamos ler apenas a chave, mas por simplicidade e portabilidade total, copiamos o arquivo)
-                    shutil.copy2(restored_env, local_env)
-                    print(f"🔑 Chave de criptografia (.env) sincronizada do backup.")
-                    
-                    # Recarregar chave na memória
-                    SecretManager.reload_key()
-                except Exception as e:
-                    print(f"⚠️ Falha ao sincronizar .env: {e}")
-
-            # 4. Estatísticas finais
-            stats = {'backup_date': backup_date}
-            for json_file in ['professores.json', 'turmas.json', 'agendamentos.json']:
-                try:
-                    p = os.path.join(real_data_path, json_file)
-                    with open(p, 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                        stats[json_file.replace('.json', '')] = len(data)
-                except:
-                    stats[json_file.replace('.json', '')] = 0
-
+        success, result = _internal_restore_logic(temp_zip)
+        
+        if success:
             return jsonify({
                 "success": True, 
                 "message": "Sistema restaurado com sucesso!",
-                "stats": stats
+                "stats": result
             })
+        else:
+            return jsonify({"success": False, "message": result}), 500
+    finally:
+        if 'temp_dir' in locals() and os.path.exists(temp_dir):
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
-        finally:
-            # Limpeza sempre executa, sucesso ou falha
-            if os.path.exists(temp_extract_dir):
-                shutil.rmtree(temp_extract_dir)
-            if os.path.exists(temp_zip):
-                os.remove(temp_zip)
+def _internal_restore_logic(zip_path):
+    """Lógica central de restauração com re-criptografia local."""
+    import zipfile
+    import shutil
+    import tempfile
+    
+    extract_dir = tempfile.mkdtemp()
+    try:
+        with zipfile.ZipFile(zip_path, 'r') as z:
+            z.extractall(extract_dir)
+        
+        # Localizar dados
+        required = ['professores.json', 'turmas.json', 'agendamentos.json', 'usuarios.json']
+        found_data_path = None
+        for root, dirs, files in os.walk(extract_dir):
+            if all(f in files for f in required):
+                found_data_path = root
+                break
+        
+        if not found_data_path:
+            return False, "Arquivos essenciais não encontrados no backup."
 
-    except Exception as e:
-        print(f"Erro crítico na restauração: {e}")
+        # 1. Ler dados (estão descriptografados no backup novo ou criptografados no antigo)
+        full_data = {}
+        for name in ["professores", "turmas", "recursos", "usuarios", "agendamentos", "config", "logs"]:
+            fpath = os.path.join(found_data_path, f"{name}.json")
+            if os.path.exists(fpath):
+                with open(fpath, 'r', encoding='utf-8') as f:
+                    full_data[name] = json.load(f)
+
+        # 2. Restaurar RE-CRIPTOGRAFANDO com a chave local
+        # Se o backup for antigo (criptografado), o models.py tentará descriptografar com a chave local.
+        # Se falhar (chave diferente), os dados ficarão corrompidos. 
+        # Por isso o novo padrão é backup descriptografado.
+        if not restore_full_database_encrypted(full_data):
+            return False, "Erro ao processar/criptografar dados restaurados."
+
+        # 3. Mover arquivos binários (logos, etc)
+        for item in os.listdir(found_data_path):
+            if not item.endswith('.json'):
+                src = os.path.join(found_data_path, item)
+                dst = os.path.join(DATA_DIR, item)
+                if os.path.isfile(src): shutil.copy2(src, dst)
+
+        # 4. Metadados
+        backup_date = "Desconhecida"
+        info_path = os.path.join(os.path.dirname(found_data_path), 'backup_info.json')
+        if os.path.exists(info_path):
+            try:
+                with open(info_path, 'r', encoding='utf-8') as f:
+                    info = json.load(f)
+                    backup_date = info.get('created_at', 'Desconhecida')
+            except: pass
+
+        return True, {
+            "backup_date": backup_date,
+            "agendamentos": len(full_data.get('agendamentos', [])),
+            "professores": len(full_data.get('professores', [])),
+            "turmas": len(full_data.get('turmas', []))
+        }
+    finally:
+        shutil.rmtree(extract_dir, ignore_errors=True)
+
 @app.route('/api/restore/github', methods=['POST'])
 def restore_github_route():
     if not is_admin():
@@ -1213,205 +1222,63 @@ def restore_github_route():
 
     data = request.json or {}
     cfg = get_config()
-    
-    # Prioridade: Request > Config
     repo = data.get('repo') or cfg.get('github_repo')
     user = data.get('user') or cfg.get('github_user')
     token = data.get('token') or cfg.get('github_token')
 
     if not repo or not user or not token:
-         return jsonify({"success": False, "message": "Credenciais incompletas. Configure primeiro."}), 400
+        return jsonify({"success": False, "message": "Credenciais incompletas."}), 400
 
+    clone_dir = tempfile.mkdtemp(prefix="cloud_restore_")
     try:
-        import shutil
-        import tempfile
-        import glob
         import stat
-        import json # Adicionado import json
-
-        # Helper para remover arquivos read-only no Windows (comum em .git)
-        def _remove_readonly(func, path, excinfo):
+        def _remove_readonly(func, path, _):
             os.chmod(path, stat.S_IWRITE)
             func(path)
 
-        # 1. Preparar Diretório Temporário
-        clone_dir = tempfile.mkdtemp(prefix="restore_cloud_")
-        
-        # 2. Clonar Repo
         clean_repo = repo.replace("https://", "").replace("http://", "")
         auth_url = f"https://{user}:{token}@{clean_repo}"
         
-        print(f"☁️ Baixando backup da nuvem: {clean_repo}...")
-        
-        # Helper para clonar e buscar zips
-        def try_clone_and_find(branch):
-            print(f"☁️ Tentando clonar branch: {branch}...")
-            # Limpar diretório se existir
-            if os.listdir(clone_dir):
-                for item in os.listdir(clone_dir):
-                    p = os.path.join(clone_dir, item)
-                    if os.path.isdir(p): shutil.rmtree(p, onerror=_remove_readonly)
-                    else: os.chmod(p, stat.S_IWRITE); os.remove(p)
-
+        # Tenta main depois master
+        found_zip = None
+        for branch in ["main", "master"]:
+            if os.path.exists(clone_dir): shutil.rmtree(clone_dir, onerror=_remove_readonly)
+            os.makedirs(clone_dir)
             cmd = ["git", "clone", "--depth", "1", "-b", branch, auth_url, clone_dir]
-            proc = subprocess.run(cmd, capture_output=True, text=True)
-            
-            if proc.returncode != 0:
-                print(f"⚠️ Falha ao clonar {branch}: {proc.stderr}")
-                return []
-            
-            return glob.glob(os.path.join(clone_dir, "backup_*.zip"))
-
-        # Tentativa 1: Branch MAIN (Onde o script joga por padrão)
-        zips = try_clone_and_find("main")
-        
-        # Tentativa 2: Branch MASTER (Caso repo antigo/default)
-        if not zips:
-            zips = try_clone_and_find("master")
-
-        if not zips:
-            shutil.rmtree(clone_dir, onerror=_remove_readonly)
-            return jsonify({"success": False, "message": "Nenhum backup encontrado (Tentado main e master)."}), 404
-            
-        # Ordenar por data (nome do arquivo)
-        latest_zip = sorted(zips)[-1]
-        print(f"📦 Backup mais recente encontrado: {os.path.basename(latest_zip)}")
-
-        # 4. Reutilizar Lógica de Restore
-        # Vamos simular um FileStorage ou refatorar o restore. 
-        # Pela simplicidade, vamos chamar a função de lógica interna se extrairmos ela, 
-        # mas como não extraímos, vamos duplicar a PARTE SEGURA de extração/substituição.
-        
-        # --- INICIO LÓGICA REPLICADA DE RESTORE (Adaptada) ---
-        temp_extract_dir = tempfile.mkdtemp()
-        try:
-            import zipfile
-            with zipfile.ZipFile(latest_zip, 'r') as zip_ref:
-                zip_ref.extractall(temp_extract_dir)
-            
-            # Localizar dados
-            required_files = ['professores.json', 'turmas.json', 'agendamentos.json', 'usuarios.json']
-            found_data_path = None
-            for root, dirs, files in os.walk(temp_extract_dir):
-                if all(f in files for f in required_files):
-                    found_data_path = root
+            if subprocess.run(cmd, capture_output=True).returncode == 0:
+                zips = glob.glob(os.path.join(clone_dir, "backup_*.zip"))
+                if zips:
+                    found_zip = sorted(zips)[-1]
                     break
-            
-            if not found_data_path:
-                raise Exception("Backup inválido: arquivos essenciais não encontrados.")
+        
+        if not found_zip:
+            return jsonify({"success": False, "message": "Nenhum backup encontrado no repositório."}), 404
 
-            # Metadados
-            backup_date = "Desconhecida"
-            possible_info_paths = [
-                os.path.join(temp_extract_dir, 'backup_info.json'),
-                os.path.join(os.path.dirname(found_data_path), 'backup_info.json')
-            ]
-            for info_path in possible_info_paths:
-                if os.path.exists(info_path):
-                    try:
-                        with open(info_path, 'r', encoding='utf-8') as f:
-                            info = json.load(f)
-                            backup_date = info.get('created_at', backup_date)
-                    except: pass
+        # Executar Restauração
+        success, result = _internal_restore_logic(found_zip)
+        
+        if success:
+            # Re-aplicar credenciais que funcionaram agora (importante se o backup tinha config antiga)
+            final_cfg = get_config()
+            final_cfg['github_repo'] = repo
+            final_cfg['github_user'] = user
+            final_cfg['github_token'] = token
+            save_config(final_cfg)
             
-            # Limpar Dados Atuais e Substituir
-            real_data_path = os.path.abspath('data')
-            if not os.path.exists(real_data_path): os.makedirs(real_data_path)
-
-            for filename in os.listdir(real_data_path):
-                file_path = os.path.join(real_data_path, filename)
-                if filename == '.gitkeep': continue
-                if filename == 'config.json': continue # PRESERVAR CONFIG para manter token!
-                try:
-                    if os.path.isfile(file_path) or os.path.islink(file_path): os.unlink(file_path)
-                    elif os.path.isdir(file_path): shutil.rmtree(file_path)
-                except: pass
-
-            # Mover arquivos novos (exceto config.json se não quisermos sobrescrever)
-            # Na verdade, queremos sobrescrever os DADOS, mas manter a CONFIG de conexão GITHUB se acabamos de setar?
-            # O "Full Circle" diz que o backup tem o config.json. 
-            # Mas se restaurarmos o config.json do backup, podemos ter um token antigo ou inválido.
-            # EMOÇÃO: Vamos restaurar TUDO, mas DEPOIS aplicamos as credenciais que foram usadas agora (user/token/repo),
-            # garantindo que a conexão continue funcionando.
-            
-            # 1. Carregar Config do Backup para memória (se existir)
-            restored_config = {}
-            backup_config_path = os.path.join(found_data_path, 'config.json')
-            if os.path.exists(backup_config_path):
-                 import json # Garantir import aqui
-                 try:
-                     with open(backup_config_path, 'r', encoding='utf-8') as f:
-                         restored_config = json.load(f)
-                 except: pass
-
-            # 2. Mover arquivos
-            for item in os.listdir(found_data_path):
-                s = os.path.join(found_data_path, item)
-                d = os.path.join(real_data_path, item)
-                try:
-                    if os.path.isdir(s):
-                         if os.path.exists(d): shutil.rmtree(d)
-                         shutil.move(s, d)
-                    else:
-                         shutil.copy2(s, d)
-                except: pass
-            
-            # 2.5 Sincronizar .env (Cofre da Chave)
-            restored_env = None
-            for root, dirs, files in os.walk(temp_extract_dir):
-                if '.env' in files:
-                    restored_env = os.path.join(root, '.env')
-                    break
-            
-            if restored_env:
-                try:
-                    from core.security import SecretManager
-                    local_env = os.path.abspath('.env')
-                    shutil.copy2(restored_env, local_env)
-                    print(f"🔑 Chave de criptografia (.env) sincronizada da Nuvem.")
-                    SecretManager.reload_key()
-                except Exception as e:
-                    print(f"⚠️ Falha ao sincronizar .env da Nuvem: {e}")
-            
-            # 3. Re-aplicar credenciais Github
-            final_config = get_config() # Relê do disco (que agora é o backup restaurado)
-            final_config['github_repo'] = repo
-            final_config['github_user'] = user
-            final_config['github_token'] = token # Atualiza com o que funcionou agora
-            save_config(final_config) # Salva definitivo
-
-            # Estatísticas
-            stats = {'backup_date': backup_date}
-            for json_file in ['professores.json', 'turmas.json', 'agendamentos.json']:
-                try:
-                    with open(os.path.join(real_data_path, json_file), 'r', encoding='utf-8') as f:
-                        data = json.load(f)
-                        stats[json_file.replace('.json', '')] = len(data)
-                except: stats[json_file.replace('.json', '')] = 0
-
             return jsonify({
                 "success": True, 
-                "message": "Sistema restaurado da nuvem com sucesso!",
-                "stats": stats,
-                "backup_file": os.path.basename(latest_zip)
+                "message": "Nuvem restaurada com sucesso!",
+                "stats": result,
+                "file": os.path.basename(found_zip)
             })
-
-        finally:
-            if os.path.exists(temp_extract_dir): 
-                shutil.rmtree(temp_extract_dir, onerror=_remove_readonly)
-        # --- FIM LÓGICA REPLICADA ---
+        else:
+            return jsonify({"success": False, "message": result}), 500
 
     except Exception as e:
-        import traceback
-        traceback.print_exc()
-        return jsonify({"success": False, "message": f"Erro crítico: {str(e)}"}), 500
+        return jsonify({"success": False, "message": str(e)}), 500
     finally:
-        if os.path.exists(clone_dir):
-            try: 
-                shutil.rmtree(clone_dir, onerror=_remove_readonly) # Cleanup do clone com handler
-            except Exception as e: 
-                print(f"WARN: Falha ao limpar temp git: {e}") 
-                pass
+        shutil.rmtree(clone_dir, onerror=_remove_readonly)
+
 
 @app.route('/api/professores/rename', methods=['POST'])
 def rename_professor():
@@ -1530,141 +1397,118 @@ scheduler = BackgroundScheduler()
 def daily_backup_job():
     """
     Executa backup no repositório satélite (.backups):
-    1. Cria zip na pasta .backups
-    2. Inicializa/Configura git DENTRO de .backups (Isolamento total)
-    3. Pruning de arquivos antigos (>90 dias)
-    4. Commit e Push para o repo do cliente
+    1. Obtém dados DESCRIPTOGRAFADOS.
+    2. Cria zip em diretório temporário e move para .backups.
+    3. Configura git identity DENTRO de .backups.
+    4. Commit e Push para o repo do cliente.
     """
     try:
         print("⏳ Iniciando backup automático (Satélite)...")
         
-        # Configurações
         cfg = get_config()
         github_repo = cfg.get('github_repo')
         github_user = cfg.get('github_user')
         github_token = cfg.get('github_token')
         
-        # Diretório Satélite
         backup_root = os.path.abspath('.backups')
         if not os.path.exists(backup_root):
             os.makedirs(backup_root)
             
-        # 1. Criar ZIP
-        today_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
-        data_path = os.path.abspath('data')
-        
-        # Zipar data/ e incluir o arquivo .env
-        base_name = os.path.join(backup_root, f"backup_{today_str}")
-        
-        # Como make_archive é limitado, vamos usar zipfile manualmente para incluir o .env
+        import tempfile
         import zipfile
-        zip_path = f"{base_name}.zip"
-        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-            # 1. Incluir pasta data/
-            for root, dirs, files in os.walk(data_path):
-                for file in files:
-                    full_path = os.path.join(root, file)
-                    rel_path = os.path.relpath(full_path, os.path.dirname(data_path))
-                    zf.write(full_path, rel_path)
-            
-            # 2. Incluir o arquivo .env (se existir)
-            env_path = os.path.abspath('.env')
-            if os.path.exists(env_path):
-                zf.write(env_path, '.env')
-                print(f"🔒 .env incluído no backup {today_str}")
-
-        zip_filename = os.path.basename(zip_path)
         
-        print(f"✅ Backup local criado: {zip_filename}")
+        today_str = datetime.now().strftime('%Y-%m-%d_%H%M%S')
+        temp_dir = tempfile.mkdtemp()
+        try:
+            # 1. Obter dados DESCRIPTOGRAFADOS
+            db_data = get_full_database_decrypted()
+            
+            # 2. Criar estrutura temporária para o ZIP
+            data_temp = os.path.join(temp_dir, 'data')
+            os.makedirs(data_temp)
+            
+            for name, content in db_data.items():
+                with open(os.path.join(data_temp, f"{name}.json"), 'w', encoding='utf-8') as f:
+                    json.dump(content, f, indent=4, ensure_ascii=False)
+            
+            # Copiar arquivos não-JSON do DATA_DIR se existirem
+            if os.path.exists(DATA_DIR):
+                for item in os.listdir(DATA_DIR):
+                    src = os.path.join(DATA_DIR, item)
+                    if os.path.isfile(src) and not item.endswith('.json'):
+                        shutil.copy2(src, os.path.join(data_temp, item))
+
+            # Criar ZIP em .backups
+            zip_path = os.path.join(backup_root, f"backup_{today_str}.zip")
+            with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zf:
+                # Zipar a pasta data/ criada no temp
+                for root, dirs, files in os.walk(data_temp):
+                    for file in files:
+                        full_p = os.path.join(root, file)
+                        rel_p = os.path.relpath(full_p, temp_dir)
+                        zf.write(full_p, rel_p)
+                
+                # backup_info.json
+                info = {'created_at': datetime.now().strftime('%d/%m/%Y %H:%M'), 'version': '2.0', 'type': 'decrypted'}
+                zf.writestr('backup_info.json', json.dumps(info, indent=4))
+
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+        print(f"✅ Backup local criado: backup_{today_str}.zip")
 
         status_msg = "Sucesso (Local)"
         tipo_log = "sistema"
 
-        # 2. Git Automation (Satélite)
+        # 3. Git Automation
         if github_repo and github_user and github_token:
             try:
-                # URL Autenticada
                 clean_repo = github_repo.replace("https://", "").replace("http://", "")
                 auth_url = f"https://{github_user}:{github_token}@{clean_repo}"
                 
-                # Helper para rodar git DENTRO de .backups
                 def run_git(args):
-                    return subprocess.run(
-                        ["git"] + args, 
-                        cwd=backup_root, 
-                        capture_output=True, 
-                        text=True,
-                        check=True
-                    )
+                    return subprocess.run(["git"] + args, cwd=backup_root, capture_output=True, text=True, check=True)
 
-                # Init se necessário
                 if not os.path.exists(os.path.join(backup_root, '.git')):
                     run_git(["init"])
-                    # Tentar renomear branch para main ou master padrão
                     try: run_git(["branch", "-M", "main"])
                     except: pass
-                    print("🔧 Git satélite inicializado")
+                
+                # CONFIGURAR IDENTIDADE (Fix: Author identity unknown)
+                try:
+                    run_git(["config", "user.name", "EduAgenda Backup"])
+                    run_git(["config", "user.email", "backup@eduagenda.local"])
+                except: pass
 
-                # Configurar Remote (Sempre atualiza para garantir que token novo seja usado)
                 remotes = run_git(["remote"]).stdout
                 if "origin" in remotes:
                     run_git(["remote", "set-url", "origin", auth_url])
                 else:
                     run_git(["remote", "add", "origin", auth_url])
                 
-                # 3. Pruning (90 dias)
+                # Pruning (90 dias)
                 cutoff = datetime.now() - timedelta(days=90)
-                files = [f for f in os.listdir(backup_root) if f.endswith('.zip') and f.startswith('backup_')]
-                
-                for f in files:
-                    try:
-                        # Formato: backup_2026-02-13_103000.zip
-                        date_part = f.replace("backup_", "").replace(".zip", "")
-                        # Suporta formato antigo YYYYMMDD_HHMMSS se houver, ou novo YYYY-MM-DD_HHMMSS
-                        # Vamos tentar parsing genérico ou fixo no novo
-                        if "_" in date_part and "-" in date_part: 
-                            file_date = datetime.strptime(date_part, "%Y-%m-%d_%H%M%S")
-                            if file_date < cutoff:
-                                os.remove(os.path.join(backup_root, f))
-                                print(f"🗑️ Backup antigo removido: {f}")
-                    except:
-                        pass 
-
-                # 3.5 Cleanup: Remover pastas perdidas (ex: extrações manuais ou lixo)
-                # Garante que apenas Zips sejam enviados
-                for item in os.listdir(backup_root):
-                    item_path = os.path.join(backup_root, item)
-                    if os.path.isdir(item_path) and item != '.git':
+                for f in os.listdir(backup_root):
+                    if f.endswith('.zip') and f.startswith('backup_'):
                         try:
-                            shutil.rmtree(item_path)
-                            print(f"🧹 Pasta de lixo removida: {item}")
-                        except Exception as e:
-                            print(f"⚠️ Erro ao limpar pasta {item}: {e}")
+                            # Tentar extrair data do nome: backup_2026-02-23_141824.zip
+                            d_str = f.split('_')[1] # 2026-02-23
+                            f_date = datetime.strptime(d_str, "%Y-%m-%d")
+                            if f_date < cutoff:
+                                os.remove(os.path.join(backup_root, f))
+                        except: pass
 
-                # 4. Git Add/Commit/Push
                 run_git(["add", "."])
-                
-                status_out = run_git(["status", "--porcelain"]).stdout
-                if status_out:
+                if run_git(["status", "--porcelain"]).stdout:
                     run_git(["commit", "-m", f"Backup Auto: {today_str}"])
-                    # Push (Tenta main, se falhar tenta master)
-                    try:
-                        run_git(["push", "-u", "origin", "main"])
-                    except:
-                        run_git(["push", "-u", "origin", "master"])
-                        
-                    print("🚀 Enviado para GitHub Satélite")
+                    try: run_git(["push", "-u", "origin", "main"])
+                    except: run_git(["push", "-u", "origin", "master"])
                     status_msg = "Sucesso (Nuvem ☁️)"
                 else:
                     status_msg = "Sucesso (Sem alt. nuvem)"
 
-            except subprocess.CalledProcessError as e:
-                err_msg = e.stderr.replace(github_token, "***")
-                print(f"⚠️ Erro Git Satélite: {err_msg}")
-                status_msg = f"Aviso (Nuvem Falhou: {err_msg[:30]}...)"
-                tipo_log = "alerta"
             except Exception as e:
-                print(f"⚠️ Erro Geral Satélite: {e}")
+                print(f"⚠️ Erro Git Satélite: {e}")
                 status_msg = f"Aviso (Erro Nuvem: {str(e)[:30]})"
                 tipo_log = "alerta"
         else:
@@ -1672,45 +1516,31 @@ def daily_backup_job():
 
         # Registrar Log
         def log_backup(logs):
-            logs.append({
-                "usuario": "Sistema",
-                "nome": "Backup Automático",
-                "data": datetime.now().isoformat(),
-                "tipo": tipo_log,
-                "mensagem": f"Backup completo. Status: {status_msg}"
-            })
+            logs.append({"usuario": "Sistema", "nome": "Backup Automático", "data": datetime.now().isoformat(), "tipo": tipo_log, "mensagem": f"Backup completo. Status: {status_msg}"})
             return logs[-1000:]
         update_logs(log_backup)
 
-        # Atualizar Config para registrar último backup
         def update_backup_status(cfg):
             cfg['last_backup_at'] = datetime.now().strftime('%d/%m/%Y %H:%M')
             cfg['last_backup_status'] = status_msg
             return cfg
-        from core.models import update_config
         update_config(update_backup_status)
 
     except Exception as e:
         print(f"❌ Erro crítico backup job: {e}")
-        def log_error(logs):
-            logs.append({
-                "usuario": "Sistema",
-                "nome": "Backup Automático",
-                "data": datetime.now().isoformat(),
-                "tipo": "erro",
-                "mensagem": f"Falha crítica no backup: {str(e)}"
-            })
-            return logs[-1000:]
-        update_logs(log_error)
-        
         try:
+            def log_error(logs):
+                logs.append({"usuario": "Sistema", "nome": "Backup Automático", "data": datetime.now().isoformat(), "tipo": "erro", "mensagem": f"Falha crítica no backup: {str(e)}"})
+                return logs[-1000:]
+            update_logs(log_error)
+            
             def update_failure_status(cfg):
                 cfg['last_backup_at'] = datetime.now().strftime('%d/%m/%Y %H:%M')
-                cfg['last_backup_status'] = f"Falha Crítica"
+                cfg['last_backup_status'] = "Falha Crítica"
                 return cfg
-            from core.models import update_config
             update_config(update_failure_status)
         except: pass
+
 
 @app.route('/api/config/github', methods=['GET', 'POST'])
 def config_github_route():

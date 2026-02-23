@@ -452,7 +452,7 @@ function updateGridUI(agendamentos) {
         if (isStaff || ((isOwner || isAssigned) && !a.locked)) {
             const del = document.createElement('button');
             del.className = 'btn-small'; del.textContent = '✕';
-            del.onclick = (e) => deleteSlot(e, a.id, a.dia, a.periodo, a.turma_id, a.turno);
+            del.onclick = (e) => deleteSlot(e, a.id, a.dia, a.periodo, a.turma_id, a.turno, a.frequencia);
             actions.appendChild(del);
         }
 
@@ -527,14 +527,63 @@ async function onSlotClick(dia, periodo) {
     else showToast("Erro ao agendar", "error");
 }
 
-async function deleteSlot(e, id, dia, periodo, turmaId, turnoId) {
+async function deleteSlot(e, id, dia, periodo, turmaId, turnoId, frequencia) {
     e.stopPropagation();
+
+    // Configura o objeto de deleção pendente globalmente para o modal usar
+    window.pendingDeletion = {
+        id,
+        semana_inicio: document.getElementById('semanaSelect').value,
+        semana_requisicao: document.getElementById('semanaSelect').value, // A semana atual da view
+        periodo,
+        dia,
+        turno: turnoId,
+        turma_id: turmaId,
+        recurso_id: window.currentResource,
+        frequencia
+    };
+
+    const isAdminOrRoot = window.currentRole === 'admin' || window.currentRole === 'root';
+
+    if (isAdminOrRoot && (frequencia === 'semanal' || frequencia === 'quinzenal')) {
+        openModal('deleteRecurrenceModal');
+        return;
+    }
+
+    // Se for comum e a frequência for semanal/quinzenal, o comportamento "diário" dele equivale a excluir apenas aquela exceção (unico)
+    if (!isAdminOrRoot && (frequencia === 'semanal' || frequencia === 'quinzenal')) {
+        await executeDeletion('unico');
+        return;
+    }
+
+    // Se for diária, apaga tudo direto (comportamento padrão)
+    await executeDeletion('tudo');
+}
+
+async function confirmDeleteRecurrence(modo) {
+    closeModal('deleteRecurrenceModal');
+    await executeDeletion(modo);
+}
+
+async function executeDeletion(modo) {
+    if (!window.pendingDeletion) return;
+
+    const payload = { ...window.pendingDeletion, modo_exclusao: modo };
+
     const res = await fetch('/api/agendamentos/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id, semana_inicio: document.getElementById('semanaSelect').value, periodo, dia, turno: turnoId, turma_id: turmaId, recurso_id: window.currentResource })
+        body: JSON.stringify(payload)
     });
-    if ((await res.json()).success) loadSchedule();
+
+    if ((await res.json()).success) {
+        showToast("Removido com sucesso!");
+        loadSchedule();
+    } else {
+        showToast("Erro ao remover", "error");
+    }
+
+    window.pendingDeletion = null;
 }
 
 async function toggleLock(e, id, dia, periodo, lockState, turmaId, turnoId) {
@@ -1652,9 +1701,13 @@ async function testGithubConnection(type) {
                 body: JSON.stringify(payload)
             });
             const data = await res.json();
-            alert("Resultado do Teste:\n" + data.message);
+            if (data.success) {
+                showToast("Resultado do Teste: " + data.message, data.message.includes('Falha') ? 'warning' : 'success');
+            } else {
+                showToast("Erro no servidor: " + data.message, 'error');
+            }
         } catch (e) {
-            alert("Erro ao testar conexão: " + e);
+            showToast("Erro ao testar conexão: " + e, 'error');
         } finally {
             btn.disabled = false;
             btn.innerText = oldText;

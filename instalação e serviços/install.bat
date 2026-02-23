@@ -2,8 +2,8 @@
 setlocal enabledelayedexpansion
 
 echo ==========================================
-echo   EduAgenda - Super Instalador v2.1
-echo   Arquitetura: Software com Vida
+echo   EduAgenda - Instalador v2.1
+echo   Arquitetura: Instalação WEB Automatizada FEV.2026
 echo ==========================================
 
 :: 1. Detecção de Versão Dinâmica
