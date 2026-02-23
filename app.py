@@ -1090,13 +1090,16 @@ def backup_data():
                 json.dump(content, f, indent=4, ensure_ascii=False)
         
         # 3. Adicionar arquivos extras se existirem (como logos, se estiverem em data/)
-        # Mas aqui focamos nos JSONs. Se o user quiser logos, shutil.copytree seria melhor, 
-        # mas logos não são criptografados então podemos copiar se existirem fisicamente.
         if os.path.exists(DATA_DIR):
             for item in os.listdir(DATA_DIR):
                 item_path = os.path.join(DATA_DIR, item)
                 if os.path.isfile(item_path) and not item.endswith('.json'):
                     shutil.copy2(item_path, os.path.join(data_dir, item))
+
+        # 4. Incluir .env como chave mestra no backup
+        from core.security import DOTENV_PATH as ENV_PATH
+        if ENV_PATH and os.path.exists(ENV_PATH):
+            shutil.copy2(ENV_PATH, os.path.join(backup_root, '.env'))
 
         # Criar metadados
         timestamp = datetime.now().strftime('%d/%m/%Y %H:%M')
@@ -1163,6 +1166,18 @@ def _internal_restore_logic(zip_path):
         with zipfile.ZipFile(zip_path, 'r') as z:
             z.extractall(extract_dir)
         
+        # 0. Restaurar .env do backup (chave mestra) ANTES de re-criptografar
+        env_from_backup = os.path.join(extract_dir, '.env')
+        if os.path.exists(env_from_backup):
+            # Em produção, grava no DATA_DIR; em dev, na raiz do projeto
+            target_env = os.path.join(DATA_DIR, '.env')
+            shutil.copy2(env_from_backup, target_env)
+            print(f"🔑 .env restaurado para: {target_env}")
+            # Recarregar a chave de criptografia com o .env restaurado
+            from core.security import SecretManager, load_dotenv, DOTENV_PATH
+            load_dotenv(target_env, override=True)
+            SecretManager.reload_key()
+
         # Localizar dados
         required = ['professores.json', 'turmas.json', 'agendamentos.json', 'usuarios.json']
         found_data_path = None
@@ -1174,7 +1189,7 @@ def _internal_restore_logic(zip_path):
         if not found_data_path:
             return False, "Arquivos essenciais não encontrados no backup."
 
-        # 1. Ler dados (estão descriptografados no backup novo ou criptografados no antigo)
+        # 1. Ler dados (estão descriptografados no backup)
         full_data = {}
         for name in ["professores", "turmas", "recursos", "usuarios", "agendamentos", "config", "logs"]:
             fpath = os.path.join(found_data_path, f"{name}.json")
@@ -1182,10 +1197,7 @@ def _internal_restore_logic(zip_path):
                 with open(fpath, 'r', encoding='utf-8') as f:
                     full_data[name] = json.load(f)
 
-        # 2. Restaurar RE-CRIPTOGRAFANDO com a chave local
-        # Se o backup for antigo (criptografado), o models.py tentará descriptografar com a chave local.
-        # Se falhar (chave diferente), os dados ficarão corrompidos. 
-        # Por isso o novo padrão é backup descriptografado.
+        # 2. Restaurar RE-CRIPTOGRAFANDO com a chave do .env restaurado
         if not restore_full_database_encrypted(full_data):
             return False, "Erro ao processar/criptografar dados restaurados."
 
@@ -1448,6 +1460,11 @@ def daily_backup_job():
                         rel_p = os.path.relpath(full_p, temp_dir)
                         zf.write(full_p, rel_p)
                 
+                # Incluir .env como chave mestra
+                from core.security import DOTENV_PATH as ENV_PATH
+                if ENV_PATH and os.path.exists(ENV_PATH):
+                    zf.write(ENV_PATH, '.env')
+
                 # backup_info.json
                 info = {'created_at': datetime.now().strftime('%d/%m/%Y %H:%M'), 'version': '2.0', 'type': 'decrypted'}
                 zf.writestr('backup_info.json', json.dumps(info, indent=4))

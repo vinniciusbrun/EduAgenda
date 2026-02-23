@@ -4,18 +4,20 @@ import hashlib
 from cryptography.fernet import Fernet
 from dotenv import load_dotenv
 
-# Carregar variáveis de ambiente para obter a chave secreta
-# Localização do .env (Shared se orquestrado)
-DOTENV_PATH = os.environ.get('EDU_DOTENV_PATH')
-if not DOTENV_PATH:
-    # Tenta achar um .env na raiz ou dois níveis acima (versions/vX.Y.Z/ -> root/shared/.env)
-    version_root = os.path.dirname(os.path.dirname(__file__))
-    # versions/v1.2.0/ -> root/shared/.env
-    potential_shared = os.path.join(os.path.dirname(os.path.dirname(version_root)), "shared", ".env")
-    if os.path.exists(potential_shared):
-        DOTENV_PATH = potential_shared
-    else:
-        DOTENV_PATH = os.path.join(version_root, ".env")
+# Resolver localização do .env em ordem de prioridade:
+# 1. .env dentro do DATA_DIR (produção: C:\EduAgenda\shared\data\.env)
+# 2. EDU_DOTENV_PATH (variável de ambiente explícita do orquestrador)
+# 3. Raiz do projeto (desenvolvimento)
+_edu_data_path = os.environ.get('EDU_DATA_PATH', '')
+_candidate_data_env = os.path.join(_edu_data_path, '.env') if _edu_data_path else ''
+
+if _candidate_data_env and os.path.exists(_candidate_data_env):
+    DOTENV_PATH = _candidate_data_env
+elif os.environ.get('EDU_DOTENV_PATH'):
+    DOTENV_PATH = os.environ.get('EDU_DOTENV_PATH')
+else:
+    # Fallback: raiz do projeto (desenvolvimento)
+    DOTENV_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), '.env')
 
 load_dotenv(DOTENV_PATH, override=True)
 
