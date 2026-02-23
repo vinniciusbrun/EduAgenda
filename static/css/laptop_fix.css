@@ -1013,6 +1013,12 @@ body.laptop-optimized #githubBackupModal .modal-body {
     overflow-y: auto !important;
 }
 
+/* Fix: Scroll lateral em TODAS as abas do dashboard (não só Visão Geral) */
+.dashboard-modal .tab-content {
+    overflow-x: auto !important;
+    overflow-y: auto !important;
+}
+
 .modal-premium .tab-content {
     max-height: calc(85vh - 80px) !important;
     padding-right: 5px !important;
