@@ -1013,12 +1013,6 @@ body.laptop-optimized #githubBackupModal .modal-body {
     overflow-y: auto !important;
 }
 
-/* Fix: Scroll lateral em TODAS as abas do dashboard (não só Visão Geral) */
-.dashboard-modal .tab-content {
-    overflow-x: auto !important;
-    overflow-y: auto !important;
-}
-
 .modal-premium .tab-content {
     max-height: calc(85vh - 80px) !important;
     padding-right: 5px !important;
@@ -1045,4 +1039,36 @@ body.laptop-optimized #githubBackupModal .modal-body {
 .modal-premium .tab-content::-webkit-scrollbar-thumb {
     background: rgba(255, 255, 255, 0.1) !important;
     border-radius: 2px !important;
+}
+
+/* 
+   ==========================================================================
+   FIX: DASHBOARD BI - SCROLL LATERAL NAS ABAS DE RECURSO (Laptop)
+   Seletores cirúrgicos por ID para atingir a estrutura real do dashboardModal
+   ==========================================================================
+*/
+
+/* 1. Barra de abas: mantém duas linhas (wrap) e garante que os nomes não sejam cortados */
+#dashboardTabsNav {
+    flex-wrap: wrap !important;
+    overflow: visible !important;
+}
+
+#dashboardTabsNav .tab-btn {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+}
+
+/* 2. Conteúdo de cada aba de recurso (lab1, auditório...) com scroll vertical */
+#resourceTabsContainer .tab-content {
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    max-height: calc(90vh - 120px) !important;
+}
+
+/* 3. Aba Visão Global e Período também precisam de scroll vertical */
+#tab-global,
+#tab-periodo {
+    overflow-y: auto !important;
+    max-height: calc(90vh - 120px) !important;
 }

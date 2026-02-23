@@ -579,6 +579,11 @@ const DashboardAdmin = {
             const rankingTurmas = Object.entries(todasTurmas).sort((a, b) => b[1] - a[1]).slice(0, 10);
             this.renderRankings('chartPeriodoTurmas', rankingTurmas, '#f472b6');
 
+            // Rankings separados por turno
+            this.renderRankings('chartPeriodoTurmasMat', t.Matutino || [], '#38bdf8');
+            this.renderRankings('chartPeriodoTurmasVesp', t.Vespertino || [], '#fbbf24');
+            this.renderRankings('chartPeriodoTurmasNot', t.Noturno || [], '#f472b6');
+
             // 4. Heatmaps Custom (Periodo)
             this.renderHeatmap('heat-p-mat', data.global.heatmap.Matutino, true, 'Matutino');
             this.renderHeatmap('heat-p-vesp', data.global.heatmap.Vespertino, true, 'Vespertino');
