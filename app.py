@@ -1606,26 +1606,78 @@ def config_github_route():
 
     if action == 'test':
         results = []
-        # Testa Backup se houver dados
+
+        # --- Teste de Backup: ls-remote + push de teste ---
         if repo_backup and user_backup:
             tk = token_backup if token_backup else cfg.get('github_token')
             if tk:
                 clean = repo_backup.replace("https://", "").replace("http://", "")
-                url = f"https://{user_backup}:{tk}@{clean}"
-                res = subprocess.run(["git", "ls-remote", url, "HEAD"], capture_output=True, text=True, timeout=10)
-                results.append(f"Backup: {'OK' if res.returncode == 0 else 'Falha'}")
-        
-        # Testa Projeto se houver dados
-        if repo_proj: 
+                auth_url = f"https://{user_backup}:{tk}@{clean}"
+
+                # 1. Verificação rápida de conectividade
+                ls = subprocess.run(
+                    ["git", "ls-remote", auth_url, "HEAD"],
+                    capture_output=True, text=True, timeout=10
+                )
+                if ls.returncode != 0:
+                    results.append("Backup: Falha (sem acesso ao repositório)")
+                else:
+                    # 2. Push de teste real no diretório .backups
+                    backup_root = os.path.abspath('.backups')
+                    os.makedirs(backup_root, exist_ok=True)
+                    try:
+                        def run_git_test(args):
+                            return subprocess.run(
+                                ["git"] + args, cwd=backup_root,
+                                capture_output=True, text=True, timeout=15
+                            )
+
+                        if not os.path.exists(os.path.join(backup_root, '.git')):
+                            run_git_test(["init"])
+                            try: run_git_test(["branch", "-M", "main"])
+                            except: pass
+
+                        run_git_test(["config", "user.name", "EduAgenda Backup"])
+                        run_git_test(["config", "user.email", "backup@eduagenda.local"])
+
+                        remotes = run_git_test(["remote"]).stdout
+                        if "origin" in remotes:
+                            run_git_test(["remote", "set-url", "origin", auth_url])
+                        else:
+                            run_git_test(["remote", "add", "origin", auth_url])
+
+                        # Arquivo de teste (timestamp único)
+                        test_file = os.path.join(backup_root, '.test_connection')
+                        with open(test_file, 'w') as f:
+                            f.write(f"Teste: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+
+                        run_git_test(["add", ".test_connection"])
+                        run_git_test(["commit", "--allow-empty", "-m", "Teste de Conexão EduAgenda"])
+                        run_git_test(["pull", "--rebase", "origin", "main"])
+                        push = run_git_test(["push", "-u", "origin", "main"])
+
+                        if push.returncode == 0:
+                            results.append("Backup: OK ✅ (push bem-sucedido — backup automático habilitado)")
+                        else:
+                            err = (push.stderr.strip().splitlines()[-1]
+                                   if push.stderr.strip() else "erro desconhecido")
+                            results.append(f"Backup: Falha no push → {err}")
+                    except Exception as e:
+                        results.append(f"Backup: Falha → {str(e)}")
+
+        # Testa Projeto (ls-remote simples)
+        if repo_proj:
             tk = token_proj if token_proj else cfg.get('github_token_proj')
-            
             if tk and user_p:
                 clean = repo_proj.replace("https://", "").replace("http://", "")
                 url = f"https://{user_p}:{tk}@{clean}"
-                res = subprocess.run(["git", "ls-remote", url, "HEAD"], capture_output=True, text=True, timeout=10)
-                results.append(f"Projeto: {'OK' if res.returncode == 0 else 'Falha'}")
-        
-        return jsonify({"success": True, "message": " | ".join(results) if results else "Nenhum dado para testar"})
+                res = subprocess.run(["git", "ls-remote", url, "HEAD"],
+                                     capture_output=True, text=True, timeout=10)
+                results.append(f"Projeto: {'OK ✅' if res.returncode == 0 else 'Falha'}")
+
+        ok = any("OK" in r for r in results)
+        return jsonify({"success": ok, "message": " | ".join(results) if results else "Nenhum dado para testar"})
+
 
     elif action == 'save':
         def update_tokens(cfg):

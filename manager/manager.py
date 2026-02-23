@@ -108,7 +108,13 @@ class EduAgendaManager:
                         # Se sobreviveu mais de 15s, podemos considerar estável para futuros fallbacks
                         self.stable_version_path = self.current_version_path
 
-                # App não está rodando ou crashou
+                # Fix: Sempre relê a versão mais nova disponível antes de reiniciar.
+                # Garante que após hot-swap or restart, a versão atualizada seja carregada.
+                if latest_version and not latest_version.endswith('_FAILED'):
+                    if latest_version != self.current_version_path:
+                        logging.info(f"Versão mais recente detectada ao reiniciar: {latest_version}. Atualizando current_version_path.")
+                    self.current_version_path = latest_version
+
                 logging.info(f"Iniciando App (ou reiniciando após queda): {self.current_version_path}")
                 self.start_app(self.current_version_path)
             else:
