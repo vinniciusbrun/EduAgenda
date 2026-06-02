@@ -2,6 +2,18 @@
 
 Todas as mudanças notáveis neste projeto serão documentadas neste arquivo.
 
+## [1.3.30] - 2026-06-02
+
+### Adicionado
+- **Papel de Supervisor de Visitantes**: Implementação da figura do Supervisor, focado em agendar horários para professores visitantes temporários.
+- **UI Exclusiva de Visitantes**: Oculta seletores de Tipo de Agendamento (fixado em Aula Regular) e Frequência (fixada em Diária). Oculta o dropdown de professores cadastrados e exibe um campo de texto livre para digitação direta do nome do visitante.
+- **Identificador de Supervisor na UI**: O nome do usuário logado na barra superior recebe o sufixo ` (Supervisor)` para identificação rápida do cargo e melhoria na experiência do usuário (UX).
+
+### Corrigido
+- **Segurança de Agendamento do Supervisor**: Impedimento estrito para que o Supervisor cadastre agendamentos recorrentes (semanal/quinzenal), limitando-o apenas a agendamentos diários.
+- **Proteção contra Alterações Alheias**: Impedimento para que o Supervisor (ou qualquer perfil não-admin) altere, sobrescreva ou exclua horários criados por outros professores, garantindo controle apenas sobre os agendamentos de visitantes por ele criados.
+- **Segurança de Logs no Windows**: Ajuste nos logs de console (prints) no backend (`app.py`), removendo caracteres especiais (emojis) que causavam quebra de encoding (`UnicodeEncodeError`) ao rodar no Windows.
+
 ## [1.3.8] - 2026-02-20
 
 ### Melhorado

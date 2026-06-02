@@ -2,7 +2,7 @@
 
 Sistema de alta performance para gestão de recursos escolares, blindado para ambientes públicos e otimizado para soberania de dados.
 
-![Version](https://img.shields.io/badge/versão-1.3.20-blue)
+![Version](https://img.shields.io/badge/versão-1.3.30-blue)
 ![Status](https://img.shields.io/badge/status-stable-green)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 ![Security](https://img.shields.io/badge/segurança-Fernet--AES--GCM-red)
@@ -31,7 +31,7 @@ Como assistente de IA focado em codificação avançada, realizei uma auditoria 
 - **Backup Cloud (GitHub Privado)**: Push automático diário para repositório privado. Identidade Git configurada automaticamente para evitar erros de commit.
 - **Dashboard BI Premium**: Gráficos analíticos com scroll lateral em todas as abas de recursos (não só Visão Geral).
 - **Modos Flexíveis**: Otimizado para terminais de quiosque, resolução reduzida e laptops (Laptop Fix Mode).
-- **Controle de Acesso**: `root` e `admin` com acesso completo ao grid. Professores com acesso restrito ao próprio horário.
+- **Controle de Acesso**: `root` e `admin` com acesso completo ao grid. Professores com acesso restrito ao próprio horário. Supervisor com painel exclusivo para professores visitantes (sem criar recorrências ou alterar dados de professores regulares).
 
 ---
 
@@ -92,6 +92,14 @@ python app.py
 ---
 
 ## 📋 Changelog
+
+### v1.3.30 (2026-06-02)
+- **Feat**: Novo papel de Supervisor para gerenciamento de professores visitantes.
+- **Feat**: Interface exclusiva do Supervisor ocultando Tipo e Frequência (travados em Aula Regular e Diária) e trocando select por campo de texto livre de visitante.
+- **Feat**: Exibição da tag ` (Supervisor)` ao lado do nome do usuário na barra superior.
+- **Fix**: Restrições no backend impedindo supervisor de criar agendamentos recorrentes (semanal/quinzenal).
+- **Fix**: Proteção de propriedade de slot impedindo supervisor/professores de alterar/excluir agendamentos alheios.
+- **Fix**: Remoção de emojis dos prints de console para prevenir erros de codificação no Windows.
 
 ### v1.3.20 (2026-02-23)
 - **Fix**: `tempfile` e `glob` adicionados aos imports globais → resolve crash 500 no restore da nuvem (`/api/restore/github`)

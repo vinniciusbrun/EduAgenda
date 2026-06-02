@@ -127,6 +127,10 @@ def is_admin():
         
     return role in ['admin', 'root']
 
+def is_supervisor_or_admin():
+    role = session.get('role', '').lower()
+    return role in ['supervisor', 'admin', 'root']
+
 def is_root():
     return session.get('role') == 'root'
 
@@ -367,13 +371,19 @@ def update_users_status():
     if not is_admin():
         return jsonify({"error": "Não autorizado"}), 403
         
-    updates = request.json # Expects list of {username, active}
+    updates = request.json # Expects list of {username, active, role}
     
     def update_logic(usuarios):
-        update_map = {u['username']: u.get('active', True) for u in updates}
+        update_map = {u['username']: u for u in updates}
         for user in usuarios:
             if user['username'] in update_map:
-                user['active'] = update_map[user['username']]
+                update_data = update_map[user['username']]
+                if 'active' in update_data:
+                    user['active'] = update_data['active']
+                if 'role' in update_data:
+                    # Protege para que admins não rebaixem root/admin acidentalmente por essa interface
+                    if user['role'] in ['professor', 'supervisor']:
+                        user['role'] = update_data['role']
         return usuarios
         
     update_usuarios(update_logic)
@@ -567,7 +577,7 @@ def create_agendamento():
     new_entry['criado_por'] = get_current_user()
     
     # Validar Autoridade do Professor
-    if not is_admin():
+    if not is_supervisor_or_admin():
         # Recuperar ID do professor logado para comparar com o ID enviado
         usuarios = get_usuarios()
         user_data = next((u for u in usuarios if u['username'] == session.get('user')), None)
@@ -576,7 +586,8 @@ def create_agendamento():
         if not user_data or new_entry.get('professor_id') != user_data.get('professor_id'):
             return jsonify({"error": "Professores só podem agendar horários para si mesmos"}), 403
             
-        # Validar Permissões de Frequência para Professores (apenas diária)
+    # Validar Permissões de Frequência (apenas administradores ou root podem cadastrar horários recorrentes)
+    if not is_admin():
         if new_entry.get('frequencia') != 'diaria':
             return jsonify({"error": "Apenas administradores podem cadastrar horários recorrentes (Semanal/Quinzenal)"}), 403
     
@@ -680,7 +691,7 @@ def lock_agendamento():
 
     try:
         update_agendamentos(do_lock)
-        print(f"🔒 [LOCK SUCCESS] ID: {data.get('id')} por {session.get('user')}")
+        print(f"[LOCK SUCCESS] ID: {data.get('id')} por {session.get('user')}")
         return jsonify({"success": True})
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
@@ -713,14 +724,14 @@ def delete_agendamento():
                 is_assigned = current_prof_id and a.get('professor_id') == current_prof_id
 
                 if a.get('locked') and not admin:
-                    print(f"🚫 [DELETE BLOCKED] Slot está travado. User: {user}")
+                    print(f"[DELETE BLOCKED] Slot está travado. User: {user}")
                     raise PermissionError("Este horário está travado pelo administrador")
                 
                 if not admin and a.get('criado_por') != user and not is_assigned:
-                    print(f"🚫 [DELETE DENIED] User: {user} Tentou remover agendamento de: {a.get('criado_por')}")
-                    raise PermissionError("Apenas o ocupante, criador ou admin pode remover este horário")
+                    print(f"[DELETE DENIED] User: {user} Tentou remover agendamento de: {a.get('criado_por')}")
+                    raise PermissionError("Apenas o criador do agendamento ou o administrador pode remover este horário")
                 
-                print(f"🗑️ [DELETE SUCCESS] ID: {a.get('id')} por {user}")
+                print(f"[DELETE SUCCESS] ID: {a.get('id')} por {user}")
                 
                 modo_exclusao = data.get('modo_exclusao', 'tudo')
                 semana_fim = data.get('semana_fim')

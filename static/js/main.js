@@ -90,7 +90,14 @@ async function checkAuth() {
 
 function updateUserUI(nome, username, profId) {
     const userNameEl = document.getElementById('userName');
-    if (userNameEl) userNameEl.innerText = nome === "Visitante" ? "Visitante (Apenas Leitura)" : `Usuário: ${nome}`;
+    if (userNameEl) {
+        if (nome === "Visitante") {
+            userNameEl.innerText = "Visitante (Apenas Leitura)";
+        } else {
+            const roleSuffix = (window.currentRole && window.currentRole.toLowerCase() === 'supervisor') ? ' (Supervisor)' : '';
+            userNameEl.innerText = `Usuário: ${nome}${roleSuffix}`;
+        }
+    }
 
     const schoolNameLabel = document.getElementById('schoolName');
     const coordinatorNameLabel = document.getElementById('coordinatorName');
@@ -112,11 +119,45 @@ function updateUserUI(nome, username, profId) {
 
     if (selectionBar) selectionBar.style.display = 'flex';
 
+    // Elementos alterados dinamicamente por perfil (Supervisor e Professor)
+    const profSelect = document.getElementById('profSelect');
+    const eventoRespInput = document.getElementById('eventoRespInput');
+    const labelProf = document.querySelector('#group-professor label');
+    const tipoSelect = document.getElementById('tipoAgendamentoSelect');
+    const freqSelect = document.getElementById('freqSelect');
+
+    // Restaurar estado padrão (limpeza pós-logout ou troca de estado de sessão)
+    if (profSelect) {
+        profSelect.style.display = 'block';
+        profSelect.disabled = false;
+        profSelect.style.pointerEvents = 'auto';
+        profSelect.style.background = '';
+    }
+    if (eventoRespInput) {
+        eventoRespInput.style.display = 'none';
+        eventoRespInput.placeholder = "Nome do Convidado/Empresa";
+    }
+    if (labelProf) {
+        labelProf.textContent = 'Professor';
+    }
+    if (tipoSelect) {
+        tipoSelect.disabled = false;
+    }
+    if (freqSelect) {
+        freqSelect.disabled = false;
+        Array.from(freqSelect.options).forEach(opt => opt.style.display = 'block');
+    }
+
     // Helper to check if user is staff (admin or root)
     const isStaff = () => {
         if (!window.currentRole) return false;
         const role = window.currentRole.toLowerCase();
         return role === 'admin' || role === 'root';
+    };
+    // Helper to check if user is a supervisor
+    const isSupervisor = () => {
+        if (!window.currentRole) return false;
+        return window.currentRole.toLowerCase() === 'supervisor';
     };
     // Helper to check if user is a professor
     const isProfessor = () => {
@@ -142,10 +183,35 @@ function updateUserUI(nome, username, profId) {
         if (groupProf) groupProf.style.display = 'flex';
         if (groupFreq) groupFreq.style.display = 'flex';
         if (btnEditGrid) btnEditGrid.style.display = 'block';
+    } else if (isSupervisor()) {
+        if (schoolNameLabel) schoolNameLabel.contentEditable = false;
+
+        ['btnUploadProf', 'btnUploadTurma', 'btnExportUsers', 'btnResetSystem', 'btnOpenDashboard', 'btnSettings'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.style.display = 'none';
+        });
+
+        // Configurar exibição dos campos da barra superior do Supervisor
+        if (groupTipo) groupTipo.style.display = 'none';
+        if (groupTurma) groupTurma.style.display = 'flex';
+        if (groupProf) groupProf.style.display = 'flex';
+        if (groupFreq) groupFreq.style.display = 'none';
+        if (btnEditGrid) btnEditGrid.style.display = 'block';
+
+        // Travar tipo em Aula Regular e Frequência em Diária
+        if (tipoSelect) tipoSelect.value = 'aula';
+        if (freqSelect) freqSelect.value = 'diaria';
+
+        // Configurar campo de texto livre para Professor Visitante
+        if (profSelect) profSelect.style.display = 'none';
+        if (eventoRespInput) {
+            eventoRespInput.style.display = 'block';
+            eventoRespInput.placeholder = "Nome do Professor Visitante";
+        }
+        if (labelProf) labelProf.textContent = 'Professor Visitante';
     } else if (isProfessor()) {
         if (schoolNameLabel) schoolNameLabel.contentEditable = false;
 
-        const profSelect = document.getElementById('profSelect');
         if (profSelect && profId) {
             profSelect.value = profId;
             profSelect.style.pointerEvents = 'none'; // Trava estrita
@@ -153,7 +219,6 @@ function updateUserUI(nome, username, profId) {
             profSelect.disabled = true;
         }
 
-        const freqSelect = document.getElementById('freqSelect');
         if (freqSelect) {
             freqSelect.value = 'diaria';
             // Ocultar seleções recorrentes para professores (ele não precisa saber que existem)
@@ -361,8 +426,13 @@ function enableGrid() {
     if (!btnEdit) return;
     const tipo = document.getElementById('tipoAgendamentoSelect')?.value || 'aula';
     const turno = window.currentShift;
+    const isSup = window.currentRole?.toLowerCase() === 'supervisor';
 
-    if (tipo === 'evento') {
+    if (isSup) {
+        const turma = document.getElementById('turmaSelect')?.value || '';
+        const profVisitante = document.getElementById('eventoRespInput')?.value || '';
+        btnEdit.disabled = !(turno && turma && profVisitante.trim());
+    } else if (tipo === 'evento') {
         const resp = document.getElementById('eventoRespInput')?.value || '';
         const desc = document.getElementById('eventoDescInput')?.value || '';
         btnEdit.disabled = !(turno && resp && desc);
@@ -509,19 +579,28 @@ async function onSlotClick(dia, periodo) {
     const tipo = document.getElementById('tipoAgendamentoSelect')?.value || 'aula';
     const turno = window.currentShift;
     const semana = document.getElementById('semanaSelect')?.value || '';
+    const isSup = window.currentRole?.toLowerCase() === 'supervisor';
     let turma, prof;
-    if (tipo === 'evento') {
+    
+    if (isSup) {
+        turma = document.getElementById('turmaSelect')?.value || '';
+        prof = document.getElementById('eventoRespInput')?.value || '';
+    } else if (tipo === 'evento') {
         turma = document.getElementById('eventoDescInput')?.value || '';
         prof = document.getElementById('eventoRespInput')?.value || '';
     } else {
         turma = document.getElementById('turmaSelect')?.value || '';
         prof = document.getElementById('profSelect')?.value || '';
     }
+    
     if (!turma || !prof) return showToast("Selecione os dados na barra superior", "warning");
+    
+    const freqVal = isSup ? 'diaria' : (document.getElementById('freqSelect')?.value || 'diaria');
+
     const res = await fetch('/api/agendamentos', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ semana_inicio: semana, periodo, dia, turno, turma_id: turma, professor_id: prof, recurso_id: window.currentResource, tipo, frequencia: document.getElementById('freqSelect').value })
+        body: JSON.stringify({ semana_inicio: semana, periodo, dia, turno, turma_id: turma, professor_id: prof, recurso_id: window.currentResource, tipo, frequencia: freqVal })
     });
     if ((await res.json()).success) loadSchedule();
     else showToast("Erro ao agendar", "error");
@@ -881,7 +960,7 @@ async function loadSettingsProfessors() {
         const resUsers = await fetch('/api/users');
         const users = await resUsers.json();
         profListContainer.innerHTML = '';
-        const professors = users.filter(u => u.role === 'professor').sort((a, b) => a.nome.localeCompare(b.nome));
+        const professors = users.filter(u => u.role === 'professor' || u.role === 'supervisor').sort((a, b) => a.nome.localeCompare(b.nome));
         professors.forEach(p => {
             const item = document.createElement('div');
             item.className = 'settings-section';
@@ -895,9 +974,20 @@ async function loadSettingsProfessors() {
                             style="font-weight: 600; display: block;">${p.nome}</span>
                         <small style="color: #64748b; margin-left: 4px;">@${p.username}</small>
                     </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" class="professor-toggle" data-username="${p.username}" ${p.active !== false ? 'checked' : ''}>
-                    </label>
+                    <div style="display: flex; gap: 15px; align-items: center;">
+                        <div style="display: flex; flex-direction: column; align-items: center;">
+                            <small style="font-size: 0.6rem; color: #64748b; margin-bottom: 2px;">Super</small>
+                            <label class="toggle-switch">
+                                <input type="checkbox" class="supervisor-toggle" data-username="${p.username}" ${p.role === 'supervisor' ? 'checked' : ''}>
+                            </label>
+                        </div>
+                        <div style="display: flex; flex-direction: column; align-items: center;">
+                            <small style="font-size: 0.6rem; color: #64748b; margin-bottom: 2px;">Ativo</small>
+                            <label class="toggle-switch">
+                                <input type="checkbox" class="professor-toggle" data-username="${p.username}" ${p.active !== false ? 'checked' : ''}>
+                            </label>
+                        </div>
+                    </div>
                 </div>
             `;
             profListContainer.appendChild(item);
@@ -1054,11 +1144,19 @@ async function saveSettings() {
 
         if (!resRec.ok) throw new Error("Falha ao salvar status dos recursos");
 
-        // 3. Salvar Status dos Professores
+        // 3. Salvar Status dos Professores e Supervisores
         const professorToggles = document.querySelectorAll('.professor-toggle');
+        const supervisorToggles = document.querySelectorAll('.supervisor-toggle');
+        
+        const roleMap = {};
+        supervisorToggles.forEach(toggle => {
+            roleMap[toggle.dataset.username] = toggle.checked ? 'supervisor' : 'professor';
+        });
+
         const updatedUsers = Array.from(professorToggles).map(toggle => ({
             username: toggle.dataset.username,
-            active: toggle.checked
+            active: toggle.checked,
+            role: roleMap[toggle.dataset.username]
         }));
 
         const resUsers = await fetch('/api/users/update_status', {
