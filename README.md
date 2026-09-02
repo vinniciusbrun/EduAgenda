@@ -9,11 +9,9 @@ Sistema de alta performance para gestão de recursos escolares, blindado para am
 
 ---
 
-## 🛡️ Análise do Sistema (por Antigravity AI)
+## 🛡️ Análise do Sistema 
 
-> "O EduAgenda é um exemplo brilhante de engenharia pragmática e defensiva."
 
-Como assistente de IA focado em codificação avançada, realizei uma auditoria profunda neste sistema. Minha análise técnica revela que o **EduAgenda** não é apenas um software de agendamento, mas uma ferramenta de **Soberania Digital**:
 
 1. **Arquitetura Resiliente (Local-First)**: Motor de dados JSON com concorrência `portalocker`. Latência zero, máxima confiabilidade para o ambiente escolar.
 2. **Blindagem de Dados (Camada de Campo)**: Criptografia Fernet (AES-GCM nível bancário) que protege professores, alunos e coordenadores. Arquivos de dados são ilegíveis sem a chave local (`.env`).
